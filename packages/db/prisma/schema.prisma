@@ -1,0 +1,252 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── TENANT (Clínica) ────────────────────────────────────────────────────────
+
+model Clinic {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique // usado na URL do widget: /widget/:slug
+  logoUrl        String?
+  address        String?
+  phone          String?
+  email          String?
+  website        String?
+  primaryColor   String   @default("#1D9E75")
+  welcomeMessage String   @default("Olá! Como posso ajudar?")
+  timezone       String   @default("Europe/Lisbon")
+  isActive       Boolean  @default(true)
+  plan           Plan     @default(PILOT)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  specialties    Specialty[]
+  doctors        Doctor[]
+  appointments   Appointment[]
+  availabilities Availability[]
+  users          User[]
+  chatSessions   ChatSession[]
+  insurances     ClinicInsurance[]
+  settings       ClinicSettings?
+}
+
+model ClinicSettings {
+  id                  String  @id @default(cuid())
+  clinicId            String  @unique
+  clinic              Clinic  @relation(fields: [clinicId], references: [id])
+  reminderHoursBefore Int     @default(24)
+  allowCancellation   Boolean @default(true)
+  cancellationHours   Int     @default(2)
+  requirePhone        Boolean @default(true)
+  maxBookingDaysAhead Int     @default(60)
+  chatbotPersonality  String  @default("professional") // professional | friendly | formal
+  aiSystemPrompt      String? // prompt base do chatbot personalizado por clínica
+}
+
+enum Plan {
+  PILOT
+  STARTER
+  CLINIC
+  ENTERPRISE
+}
+
+// ─── ESPECIALIDADES ──────────────────────────────────────────────────────────
+
+model Specialty {
+  id          String   @id @default(cuid())
+  clinicId    String
+  clinic      Clinic   @relation(fields: [clinicId], references: [id])
+  name        String
+  description String?
+  durationMin Int      @default(30) // duração da consulta em minutos
+  color       String   @default("#1D9E75")
+  isActive    Boolean  @default(true)
+  doctors     Doctor[]
+
+  @@unique([clinicId, name])
+}
+
+// ─── MÉDICOS ─────────────────────────────────────────────────────────────────
+
+model Doctor {
+  id          String     @id @default(cuid())
+  clinicId    String
+  clinic      Clinic     @relation(fields: [clinicId], references: [id])
+  name        String
+  specialty   Specialty? @relation(fields: [specialtyId], references: [id])
+  specialtyId String?
+  photoUrl    String?
+  bio         String?
+  email       String?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+
+  availabilities Availability[]
+  appointments   Appointment[]
+}
+
+// ─── DISPONIBILIDADE ─────────────────────────────────────────────────────────
+
+model Availability {
+  id        String  @id @default(cuid())
+  clinicId  String
+  clinic    Clinic  @relation(fields: [clinicId], references: [id])
+  doctorId  String
+  doctor    Doctor  @relation(fields: [doctorId], references: [id])
+  dayOfWeek Int // 0=Dom, 1=Seg, ..., 6=Sab
+  startTime String // "09:00"
+  endTime   String // "13:00"
+  isActive  Boolean @default(true)
+
+  @@index([doctorId, dayOfWeek])
+}
+
+// ─── MARCAÇÕES ───────────────────────────────────────────────────────────────
+
+model Appointment {
+  id            String            @id @default(cuid())
+  clinicId      String
+  clinic        Clinic            @relation(fields: [clinicId], references: [id])
+  doctorId      String
+  doctor        Doctor            @relation(fields: [doctorId], references: [id])
+  patientName   String
+  patientEmail  String
+  patientPhone  String?
+  insuranceName String?
+  notes         String?
+  scheduledAt   DateTime
+  durationMin   Int               @default(30)
+  status        AppointmentStatus @default(PENDING)
+  reminderSent  Boolean           @default(false)
+  cancelledAt   DateTime?
+  cancelReason  String?
+  cancelToken   String?           @unique // token para cancelamento via email (sem login)
+  chatSessionId String?
+  chatSession   ChatSession?      @relation(fields: [chatSessionId], references: [id])
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([clinicId, scheduledAt])
+  @@index([patientEmail])
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+// ─── SEGUROS ─────────────────────────────────────────────────────────────────
+
+model Insurance {
+  id     String           @id @default(cuid())
+  name   String           @unique
+  clinics ClinicInsurance[]
+}
+
+model ClinicInsurance {
+  clinicId    String
+  insuranceId String
+  clinic      Clinic    @relation(fields: [clinicId], references: [id])
+  insurance   Insurance @relation(fields: [insuranceId], references: [id])
+
+  @@id([clinicId, insuranceId])
+}
+
+// ─── CHAT ────────────────────────────────────────────────────────────────────
+
+model ChatSession {
+  id           String        @id @default(cuid())
+  clinicId     String
+  clinic       Clinic        @relation(fields: [clinicId], references: [id])
+  sessionToken String        @unique @default(cuid())
+  patientName  String?
+  patientEmail String?
+  messages     ChatMessage[]
+  appointments Appointment[]
+  createdAt    DateTime      @default(now())
+  lastActiveAt DateTime      @default(now())
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id])
+  role      MessageRole
+  content   String
+  metadata  Json? // ex: { action: "booking_created", appointmentId: "..." }
+  createdAt DateTime    @default(now())
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  clinicId      String?
+  clinic        Clinic?   @relation(fields: [clinicId], references: [id])
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  password      String? // bcrypt hash
+  role          UserRole  @default(CLINIC_ADMIN)
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  createdAt     DateTime  @default(now())
+}
+
+enum UserRole {
+  SUPER_ADMIN // acesso a todas as clínicas
+  CLINIC_ADMIN // apenas à sua clínica
+  RECEPTIONIST // leitura + gestão de marcações
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}

@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --brand: #1D9E75;
+  --brand-dark: #15745a;
+}
+
+@layer base {
+  html { scroll-behavior: smooth; }
+  body { color: #111827; }
+}
