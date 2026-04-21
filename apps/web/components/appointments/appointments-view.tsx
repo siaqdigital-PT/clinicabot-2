@@ -1,4 +1,4 @@
-"use client";
+use client";
 
 import { useState, useEffect, useCallback } from "react";
 import { Search, Plus, Download, List, CalendarDays } from "lucide-react";
@@ -37,6 +37,7 @@ export function AppointmentsView() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [prefilledDate, setPrefilledDate] = useState<Date | undefined>(undefined);
   const PAGE_SIZE = 20;
 
   useEffect(() => {
@@ -99,6 +100,16 @@ export function AppointmentsView() {
     a.download = `marcacoes-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  function handleCalendarDayClick(date: Date) {
+    setPrefilledDate(date);
+    setDialogOpen(true);
+  }
+
+  function handleDialogClose(open: boolean) {
+    setDialogOpen(open);
+    if (!open) setPrefilledDate(undefined);
   }
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -168,7 +179,7 @@ export function AppointmentsView() {
         )}
 
         <button
-          onClick={() => setDialogOpen(true)}
+          onClick={() => { setPrefilledDate(undefined); setDialogOpen(true); }}
           className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-white hover:opacity-90"
         >
           <Plus size={15} /> Nova Marcação
@@ -177,12 +188,15 @@ export function AppointmentsView() {
 
       <NewAppointmentDialog
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        onCreated={() => { setDialogOpen(false); void fetchAppointments(); }}
+        onOpenChange={handleDialogClose}
+        defaultDate={prefilledDate}
+        onCreated={() => { setDialogOpen(false); setPrefilledDate(undefined); void fetchAppointments(); }}
       />
 
       {/* Vista de calendário */}
-      {view === "calendar" && <CalendarView />}
+      {view === "calendar" && (
+        <CalendarView onNewAppointment={handleCalendarDayClick} />
+      )}
 
       {/* Tabela — apenas na vista de lista */}
       {view === "list" && (

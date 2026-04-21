@@ -54,7 +54,11 @@ function fmtTime(iso: string) {
 
 // ─── Main component ────────────────────────────────────────────────────────
 
-export function CalendarView() {
+interface CalendarViewProps {
+  onNewAppointment?: (date: Date) => void;
+}
+
+export function CalendarView({ onNewAppointment }: CalendarViewProps) {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -94,6 +98,14 @@ export function CalendarView() {
     });
     setSelected((prev) => (prev?.id === id ? { ...prev, status } : prev));
     void fetchCalendar();
+  }
+
+  function handleDayClick(day: number, hasAppointments: boolean) {
+    if (!hasAppointments && onNewAppointment) {
+      // Clique num dia vazio → abre modal de nova marcação com data pré-preenchida
+      const date = new Date(year, month, day, 9, 0, 0); // default 09:00
+      onNewAppointment(date);
+    }
   }
 
   // Group appointments by date key
@@ -167,13 +179,18 @@ export function CalendarView() {
                 const isExpanded = expandedDay === key;
                 const visible = isExpanded ? dayAppts : dayAppts.slice(0, 3);
                 const extra = dayAppts.length - 3;
+                const isEmpty = dayAppts.length === 0;
 
                 return (
                   <div
                     key={key}
+                    onClick={() => handleDayClick(day, !isEmpty)}
                     className={cn(
-                      "min-h-[110px] border-b border-r border-gray-100 p-1.5 transition-colors hover:bg-gray-50/80",
-                      isToday && "ring-2 ring-inset ring-[#1D9E75]/50"
+                      "min-h-[110px] border-b border-r border-gray-100 p-1.5 transition-colors",
+                      isToday && "ring-2 ring-inset ring-[#1D9E75]/50",
+                      isEmpty && onNewAppointment
+                        ? "cursor-pointer hover:bg-green-50/60"
+                        : "hover:bg-gray-50/80"
                     )}
                   >
                     {/* Day number */}
@@ -188,6 +205,13 @@ export function CalendarView() {
                       {day}
                     </div>
 
+                    {/* Empty day hint */}
+                    {isEmpty && onNewAppointment && (
+                      <div className="flex items-center justify-center pt-2 opacity-0 transition-opacity group-hover:opacity-100 hover:opacity-100">
+                        <span className="text-[10px] text-gray-300">+ marcar</span>
+                      </div>
+                    )}
+
                     {/* Appointment pills */}
                     <div className="space-y-0.5">
                       {visible.map((appt) => {
@@ -195,7 +219,7 @@ export function CalendarView() {
                         return (
                           <button
                             key={appt.id}
-                            onClick={() => setSelected(appt)}
+                            onClick={(e) => { e.stopPropagation(); setSelected(appt); }}
                             title={`${fmtTime(appt.scheduledAt)} — ${appt.patientName}`}
                             className={cn(
                               "w-full truncate rounded px-1.5 py-0.5 text-left text-[11px] font-medium leading-tight transition-opacity hover:opacity-75",
@@ -210,7 +234,7 @@ export function CalendarView() {
 
                       {!isExpanded && extra > 0 && (
                         <button
-                          onClick={() => setExpandedDay(key)}
+                          onClick={(e) => { e.stopPropagation(); setExpandedDay(key); }}
                           className="w-full rounded px-1.5 py-0.5 text-left text-[11px] text-gray-500 hover:text-gray-700"
                         >
                           +{extra} mais
@@ -218,7 +242,7 @@ export function CalendarView() {
                       )}
                       {isExpanded && dayAppts.length > 3 && (
                         <button
-                          onClick={() => setExpandedDay(null)}
+                          onClick={(e) => { e.stopPropagation(); setExpandedDay(null); }}
                           className="w-full rounded px-1.5 py-0.5 text-left text-[11px] text-gray-400 hover:text-gray-600"
                         >
                           ver menos

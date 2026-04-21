@@ -61,9 +61,10 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreated: () => void;
+  defaultDate?: Date; // data pré-preenchida ao clicar num dia vazio do calendário
 }
 
-export function NewAppointmentDialog({ open, onOpenChange, onCreated }: Props) {
+export function NewAppointmentDialog({ open, onOpenChange, onCreated, defaultDate }: Props) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [specialties, setSpecialties] = useState<Specialty[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -82,6 +83,13 @@ export function NewAppointmentDialog({ open, onOpenChange, onCreated }: Props) {
       .then((data: unknown) => setSpecialties(Array.isArray(data) ? data : (data as { data?: Specialty[] }).data ?? []))
       .catch(console.error);
   }, [open]);
+
+  // Pré-preencher data quando defaultDate muda
+  useEffect(() => {
+    if (!open || !defaultDate) return;
+    const dateStr = defaultDate.toISOString().split("T")[0];
+    setForm((f) => ({ ...f, date: dateStr }));
+  }, [open, defaultDate]);
 
   // Carregar médicos quando muda a especialidade
   useEffect(() => {
@@ -130,14 +138,9 @@ export function NewAppointmentDialog({ open, onOpenChange, onCreated }: Props) {
     setSubmitting(true);
     setError(null);
 
-    // Construir ISO datetime: date + time no fuso de Lisboa
     const scheduledAt = new Date(`${form.date}T${form.time}:00`).toISOString();
-
-    // Obter durationMin do médico selecionado
     const selectedDoctor = doctors.find((d) => d.id === form.doctorId);
     const durationMin = selectedDoctor?.specialty?.durationMin ?? 30;
-
-    // Obter specialtyName
     const selectedSpecialty = specialties.find((s) => s.id === form.specialtyId);
 
     try {
@@ -184,7 +187,6 @@ export function NewAppointmentDialog({ open, onOpenChange, onCreated }: Props) {
     onOpenChange(open);
   }
 
-  // Data mínima = hoje
   const today = new Date().toISOString().split("T")[0];
 
   return (
@@ -193,7 +195,6 @@ export function NewAppointmentDialog({ open, onOpenChange, onCreated }: Props) {
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" />
         <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-white p-6 shadow-xl focus:outline-none max-h-[90vh] overflow-y-auto">
           {success ? (
-            /* Ecrã de sucesso */
             <div className="flex flex-col items-center py-6 text-center">
               <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100">
                 <svg className="h-7 w-7 text-emerald-600" viewBox="0 0 20 20" fill="currentColor">
@@ -216,6 +217,11 @@ export function NewAppointmentDialog({ open, onOpenChange, onCreated }: Props) {
             <>
               <Dialog.Title className="mb-1 text-lg font-semibold text-gray-900">
                 Nova Marcação Manual
+                {defaultDate && (
+                  <span className="ml-2 text-sm font-normal text-[#1D9E75]">
+                    — {defaultDate.toLocaleDateString("pt-PT", { day: "numeric", month: "long" })}
+                  </span>
+                )}
               </Dialog.Title>
               <Dialog.Description className="mb-5 text-sm text-gray-500">
                 Cria uma marcação confirmada para um paciente que contactou a clínica.
@@ -277,7 +283,6 @@ export function NewAppointmentDialog({ open, onOpenChange, onCreated }: Props) {
                     Consulta
                   </legend>
 
-                  {/* Especialidade */}
                   <div>
                     <label className="mb-1 block text-xs font-medium text-gray-700">
                       Especialidade <span className="text-red-500">*</span>
@@ -295,7 +300,6 @@ export function NewAppointmentDialog({ open, onOpenChange, onCreated }: Props) {
                     </select>
                   </div>
 
-                  {/* Médico */}
                   <div>
                     <label className="mb-1 block text-xs font-medium text-gray-700">
                       Médico <span className="text-red-500">*</span>
@@ -321,7 +325,6 @@ export function NewAppointmentDialog({ open, onOpenChange, onCreated }: Props) {
                     )}
                   </div>
 
-                  {/* Data + Hora */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="mb-1 block text-xs font-medium text-gray-700">
@@ -368,7 +371,6 @@ export function NewAppointmentDialog({ open, onOpenChange, onCreated }: Props) {
                   </div>
                 </fieldset>
 
-                {/* Seguro + Notas */}
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-700">Seguro de saúde</label>
                   <select
