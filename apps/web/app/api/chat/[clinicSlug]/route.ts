@@ -26,7 +26,6 @@ function sseChunk(data: object): Uint8Array {
   return _enc.encode(`data: ${JSON.stringify(data)}\n\n`);
 }
 
-/** POST /api/chat/:clinicSlug — enviar mensagem ao chatbot */
 export async function POST(
   req: NextRequest,
   { params }: { params: { clinicSlug: string } }
@@ -35,7 +34,6 @@ export async function POST(
     req.headers.get("accept")?.includes("text/event-stream") ||
     req.nextUrl.searchParams.get("stream") === "true";
 
-  // 1. Carregar clínica
   const clinic = await prisma.clinic.findUnique({
     where: { slug: params.clinicSlug, isActive: true },
     include: {
@@ -63,7 +61,6 @@ export async function POST(
 
   const { sessionToken, message } = parsed.data;
 
-  // 2. Carregar ou criar sessão de chat
   let session = sessionToken
     ? await prisma.chatSession.findUnique({ where: { sessionToken } })
     : null;
@@ -79,19 +76,16 @@ export async function POST(
     });
   }
 
-  // 3. Guardar mensagem do utilizador
   await prisma.chatMessage.create({
     data: { sessionId: session.id, role: "USER", content: message },
   });
 
-  // 4. Buscar histórico (últimas 20 mensagens, excluindo SYSTEM)
   const history = await prisma.chatMessage.findMany({
     where: { sessionId: session.id, role: { not: "SYSTEM" } },
     orderBy: { createdAt: "asc" },
     take: 20,
   });
 
-  // 5. Construir system prompt dinâmico
   const systemPrompt = buildSystemPrompt({
     name: clinic.name,
     specialties: clinic.specialties,
@@ -104,7 +98,6 @@ export async function POST(
     address: clinic.address,
   });
 
-  // 6. Construir array de mensagens para a API
   const apiMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: "system", content: systemPrompt },
     ...history.map((m) => ({
@@ -113,8 +106,8 @@ export async function POST(
     })),
   ];
 
-  // ─── Helper: executar uma tool call ────────────────────────────────────────
   const capturedSession = session;
+  const capturedClinic = clinic;
 
   async function runToolCall(toolCall: {
     id: string;
@@ -126,7 +119,7 @@ export async function POST(
 
     if (toolName === "check_availability") {
       const slots = await getAvailableSlots(
-        clinic.id,
+        capturedClinic.id,
         args.specialtyName as string,
         args.preferredDate as string | undefined,
         6
@@ -135,8 +128,7 @@ export async function POST(
         return {
           result: {
             available: false,
-            message:
-              "Não foram encontrados horários disponíveis nos próximos 14 dias para esta especialidade.",
+            message: "Não foram encontrados horários disponíveis nos próximos 14 dias para esta especialidade.",
           },
           metadata: null,
         };
@@ -166,13 +158,13 @@ export async function POST(
       };
 
       let doctor = await prisma.doctor.findFirst({
-        where: { id: apptArgs.doctorId, clinicId: clinic.id, isActive: true },
+        where: { id: apptArgs.doctorId, clinicId: capturedClinic.id, isActive: true },
       });
 
       if (!doctor && apptArgs.doctorId) {
         const byName = await prisma.doctor.findFirst({
           where: {
-            clinicId: clinic.id,
+            clinicId: capturedClinic.id,
             isActive: true,
             name: { contains: apptArgs.doctorId, mode: "insensitive" },
           },
@@ -183,13 +175,13 @@ export async function POST(
       if (!doctor) {
         const specialty = await prisma.specialty.findFirst({
           where: {
-            clinicId: clinic.id,
+            clinicId: capturedClinic.id,
             name: { equals: apptArgs.specialtyName, mode: "insensitive" },
           },
         });
         if (specialty) {
           doctor = await prisma.doctor.findFirst({
-            where: { clinicId: clinic.id, specialtyId: specialty.id, isActive: true },
+            where: { clinicId: capturedClinic.id, specialtyId: specialty.id, isActive: true },
           });
         }
       }
@@ -198,8 +190,7 @@ export async function POST(
         return {
           result: {
             success: false,
-            error:
-              "Não foi possível encontrar o médico. Por favor escolha novamente um dos horários disponíveis.",
+            error: "Não foi possível encontrar o médico. Por favor escolha novamente um dos horários disponíveis.",
           },
           metadata: null,
         };
@@ -210,7 +201,7 @@ export async function POST(
 
       const appointment = await prisma.appointment.create({
         data: {
-          clinicId: clinic.id,
+          clinicId: capturedClinic.id,
           doctorId: apptArgs.doctorId,
           patientName: apptArgs.patientName,
           patientEmail: apptArgs.patientEmail,
@@ -237,9 +228,9 @@ export async function POST(
         appointmentId: appointment.id,
         patientName: appointment.patientName,
         patientEmail: appointment.patientEmail,
-        clinicName: clinic.name,
-        clinicAddress: clinic.address ?? "",
-        clinicPhone: clinic.phone ?? "",
+        clinicName: capturedClinic.name,
+        clinicAddress: capturedClinic.address ?? "",
+        clinicPhone: capturedClinic.phone ?? "",
         doctorName: appointment.doctor.name,
         specialtyName: apptArgs.specialtyName,
         scheduledAt: appointment.scheduledAt,
@@ -248,7 +239,7 @@ export async function POST(
         appUrl: process.env.NEXT_PUBLIC_APP_URL ?? "",
       }).catch((err: unknown) => console.error("[chat] Erro email:", err));
 
-      void sendClinicNotification(clinic.email ?? "", {
+      void sendClinicNotification(capturedClinic.email ?? "", {
         patientName: appointment.patientName,
         specialtyName: apptArgs.specialtyName,
         scheduledAt: appointment.scheduledAt,
@@ -268,13 +259,13 @@ export async function POST(
     if (toolName === "get_clinic_info") {
       return {
         result: {
-          name: clinic.name,
-          address: clinic.address,
-          phone: clinic.phone,
-          email: clinic.email,
-          website: clinic.website,
-          specialties: clinic.specialties.map((s) => s.name),
-          insurances: clinic.insurances.map((ci) => ci.insurance.name),
+          name: capturedClinic.name,
+          address: capturedClinic.address,
+          phone: capturedClinic.phone,
+          email: capturedClinic.email,
+          website: capturedClinic.website,
+          specialties: capturedClinic.specialties.map((s) => s.name),
+          insurances: capturedClinic.insurances.map((ci) => ci.insurance.name),
         },
         metadata: null,
       };
@@ -283,7 +274,6 @@ export async function POST(
     return { result: { error: `Função desconhecida: ${toolName}` }, metadata: null };
   }
 
-  // ─── STREAMING MODE ────────────────────────────────────────────────────────
   if (isStream) {
     return new Response(
       new ReadableStream({
@@ -308,10 +298,7 @@ export async function POST(
               });
 
               let textContent = "";
-              const toolCallMap = new Map<
-                number,
-                { id: string; name: string; arguments: string }
-              >();
+              const toolCallMap = new Map<number, { id: string; name: string; arguments: string }>();
 
               for await (const chunk of groqStream) {
                 const delta = chunk.choices[0]?.delta;
@@ -324,11 +311,7 @@ export async function POST(
 
                 if (delta.tool_calls) {
                   for (const tc of delta.tool_calls) {
-                    const existing = toolCallMap.get(tc.index) ?? {
-                      id: "",
-                      name: "",
-                      arguments: "",
-                    };
+                    const existing = toolCallMap.get(tc.index) ?? { id: "", name: "", arguments: "" };
                     if (tc.id) existing.id = tc.id;
                     if (tc.function?.name) existing.name += tc.function.name;
                     if (tc.function?.arguments) existing.arguments += tc.function.arguments;
@@ -337,13 +320,11 @@ export async function POST(
                 }
               }
 
-              // Sem tool calls → resposta final
               if (toolCallMap.size === 0) {
                 finalResponse = textContent;
                 break;
               }
 
-              // Com tool calls → processar (sem streaming durante este passo)
               const toolCalls = Array.from(toolCallMap.entries())
                 .sort(([a], [b]) => a - b)
                 .map(([, tc]) => ({
@@ -381,7 +362,6 @@ export async function POST(
               }
             }
 
-            // Guardar resposta na BD
             await prisma.chatMessage.create({
               data: {
                 sessionId: capturedSession.id,
@@ -391,7 +371,6 @@ export async function POST(
               },
             });
 
-            // Evento final com metadata e sessionToken
             controller.enqueue(
               sseChunk({
                 type: "done",
@@ -412,7 +391,6 @@ export async function POST(
     );
   }
 
-  // ─── NON-STREAMING MODE (retrocompatibilidade) ────────────────────────────
   let finalResponse = "";
   let toolCallsMetadata: Record<string, unknown> | null = null;
   const MAX_TOOL_ROUNDS = 3;
@@ -465,7 +443,6 @@ export async function POST(
     }
   }
 
-  // 8. Guardar resposta do assistente na BD
   await prisma.chatMessage.create({
     data: {
       sessionId: session.id,
