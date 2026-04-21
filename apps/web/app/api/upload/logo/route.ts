@@ -29,15 +29,20 @@ export async function POST(req: NextRequest) {
   const ext = file.name.split(".").pop() ?? "png";
   const filename = `logos/${targetClinicId}.${ext}`;
 
-  const blob = await put(filename, file, {
-    access: "private",
-    addRandomSuffix: false,
-  });
+  try {
+    const blob = await put(filename, file, {
+      access: "public",
+      addRandomSuffix: false,
+    });
 
-  await prisma.clinic.update({
-    where: { id: targetClinicId! },
-    data: { logoUrl: blob.url },
-  });
+    await prisma.clinic.update({
+      where: { id: targetClinicId! },
+      data: { logoUrl: blob.url },
+    });
 
-  return NextResponse.json({ url: blob.url });
+    return NextResponse.json({ url: blob.url });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Erro desconhecido";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }
