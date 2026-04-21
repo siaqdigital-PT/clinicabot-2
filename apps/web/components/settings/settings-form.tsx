@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Upload, X, ImageIcon } from "lucide-react";
+import Image from "next/image";
 
 const settingsSchema = z.object({
   name: z.string().min(2).max(100),
@@ -35,6 +37,7 @@ interface SettingsFormProps {
     website?: string | null;
     primaryColor: string;
     welcomeMessage: string;
+    logoUrl?: string | null;
     settings?: {
       chatbotPersonality: string;
       reminderHoursBefore: number;
@@ -52,6 +55,11 @@ interface SettingsFormProps {
 export function SettingsForm({ clinic, allInsurances, selectedInsuranceIds, isSuperAdmin }: SettingsFormProps) {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(clinic.logoUrl ?? null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<SettingsInput>({
     resolver: zodResolver(settingsSchema),
@@ -76,6 +84,54 @@ export function SettingsForm({ clinic, allInsurances, selectedInsuranceIds, isSu
   const selectedColor = watch("primaryColor");
   const insuranceIds = watch("insuranceIds");
 
+  async function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Preview local imediato
+    const reader = new FileReader();
+    reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
+    reader.readAsDataURL(file);
+
+    setLogoUploading(true);
+    setLogoError(null);
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("clinicId", clinic.id);
+
+    try {
+      const res = await fetch("/api/upload/logo", {
+        method: "POST",
+        body: formData,
+      });
+      const json = await res.json() as { url?: string; error?: string };
+      if (!res.ok || !json.url) {
+        setLogoError(json.error ?? "Erro ao fazer upload.");
+        setLogoPreview(null);
+        return;
+      }
+      setLogoUrl(json.url);
+      setLogoPreview(null);
+    } catch {
+      setLogoError("Erro de ligação. Tente novamente.");
+      setLogoPreview(null);
+    } finally {
+      setLogoUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleRemoveLogo() {
+    setLogoUrl(null);
+    setLogoPreview(null);
+    await fetch(`/api/clinics/${clinic.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ logoUrl: null }),
+    });
+  }
+
   async function onSubmit(data: SettingsInput) {
     setError(null);
     const res = await fetch(`/api/clinics/${clinic.id}`, {
@@ -99,8 +155,64 @@ export function SettingsForm({ clinic, allInsurances, selectedInsuranceIds, isSu
     );
   }
 
+  const currentLogo = logoPreview ?? logoUrl;
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+
+      {/* Logo da Clínica */}
+      <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-4 text-base font-semibold text-gray-900">Logo da Clínica</h2>
+        <div className="flex items-center gap-5">
+          {/* Preview */}
+          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-gray-200 bg-gray-50">
+            {currentLogo ? (
+              <Image
+                src={currentLogo}
+                alt="Logo"
+                width={80}
+                height={80}
+                className="h-full w-full object-contain"
+                unoptimized
+              />
+            ) : (
+              <ImageIcon size={28} className="text-gray-300" />
+            )}
+          </div>
+
+          {/* Ações */}
+          <div className="flex flex-col gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
+              onChange={(e) => void handleLogoChange(e)}
+              className="hidden"
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={logoUploading}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+            >
+              <Upload size={14} />
+              {logoUploading ? "A fazer upload..." : "Carregar logo"}
+            </button>
+            {currentLogo && (
+              <button
+                type="button"
+                onClick={() => void handleRemoveLogo()}
+                className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+              >
+                <X size={14} /> Remover logo
+              </button>
+            )}
+            <p className="text-xs text-gray-400">PNG, JPG, WebP ou SVG. Máx. 2MB.</p>
+            {logoError && <p className="text-xs text-red-500">{logoError}</p>}
+          </div>
+        </div>
+      </section>
+
       {/* Informação Geral */}
       <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-base font-semibold text-gray-900">Informação Geral</h2>
@@ -138,7 +250,6 @@ export function SettingsForm({ clinic, allInsurances, selectedInsuranceIds, isSu
             <input {...register("welcomeMessage")} className={inputCls} />
             {errors.welcomeMessage && <p className="mt-1 text-xs text-red-500">{errors.welcomeMessage.message}</p>}
           </div>
-
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Personalidade</label>
             <select {...register("chatbotPersonality")} className={inputCls}>
@@ -147,13 +258,11 @@ export function SettingsForm({ clinic, allInsurances, selectedInsuranceIds, isSu
               <option value="formal">Formal</option>
             </select>
           </div>
-
           <div className="flex items-center gap-3">
             <label className="text-sm font-medium text-gray-700">Cor Principal</label>
             <input {...register("primaryColor")} type="color" className="h-9 w-16 cursor-pointer rounded border border-gray-300" />
             <span className="font-mono text-sm text-gray-500">{selectedColor}</span>
           </div>
-
           {isSuperAdmin && (
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">
@@ -190,9 +299,7 @@ export function SettingsForm({ clinic, allInsurances, selectedInsuranceIds, isSu
             </label>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Prazo mínimo cancelamento (horas)
-            </label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Prazo mínimo cancelamento (horas)</label>
             <input {...register("cancellationHours")} type="number" min={0} max={48} className={inputCls} />
           </div>
         </div>
@@ -216,7 +323,6 @@ export function SettingsForm({ clinic, allInsurances, selectedInsuranceIds, isSu
         </div>
       </section>
 
-      {/* Feedback e botão */}
       {error && (
         <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600 ring-1 ring-red-200">
           {error}

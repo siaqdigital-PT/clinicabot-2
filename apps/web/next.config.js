@@ -4,6 +4,7 @@ const path = require("path");
 const nextConfig = {
   outputFileTracingRoot: path.join(__dirname, "../../"),
   transpilePackages: ["@clinicabot/db", "@clinicabot/types", "@clinicabot/utils"],
+  serverExternalPackages: ["@vercel/blob"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "*.vercel-storage.com" },
