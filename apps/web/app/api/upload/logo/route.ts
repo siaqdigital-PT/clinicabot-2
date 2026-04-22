@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
     const blob = await put(filename, file, {
       access: "public",
       addRandomSuffix: false,
+      allowOverwrite: true,
     });
 
     await prisma.clinic.update({
