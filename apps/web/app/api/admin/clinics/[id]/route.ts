@@ -52,3 +52,22 @@ export async function GET(
 
   return NextResponse.json(clinic);
 }
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  const session = await auth();
+  if (!session || session.user.role !== "SUPER_ADMIN") {
+    return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
+  }
+
+  const { isActive } = await req.json() as { isActive: boolean };
+
+  const clinic = await prisma.clinic.update({
+    where: { id: params.id },
+    data: { isActive },
+  });
+
+  return NextResponse.json(clinic);
+}

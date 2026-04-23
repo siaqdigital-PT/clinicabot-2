@@ -4,8 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { KeyRound } from "lucide-react";
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
-
 interface ClinicDetail {
   id: string;
   name: string;
@@ -43,8 +41,6 @@ interface ClinicDetail {
   };
 }
 
-// ─── Utilitários ──────────────────────────────────────────────────────────────
-
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("pt-PT", {
     day: "2-digit",
@@ -54,13 +50,6 @@ function formatDate(dateStr: string) {
     minute: "2-digit",
   });
 }
-
-const PLAN_COLORS: Record<string, string> = {
-  PILOT: "bg-gray-100 text-gray-600",
-  STARTER: "bg-blue-100 text-blue-700",
-  CLINIC: "bg-emerald-100 text-emerald-700",
-  ENTERPRISE: "bg-purple-100 text-purple-700",
-};
 
 const STATUS_COLORS: Record<string, string> = {
   PENDING: "bg-yellow-50 text-yellow-700",
@@ -84,8 +73,6 @@ const ROLE_LABELS: Record<string, string> = {
   RECEPTIONIST: "Rececionista",
 };
 
-// ─── Componente principal ─────────────────────────────────────────────────────
-
 export default function ClinicDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
@@ -94,6 +81,7 @@ export default function ClinicDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [resettingUser, setResettingUser] = useState<string | null>(null);
   const [resetSuccess, setResetSuccess] = useState<string | null>(null);
+  const [togglingStatus, setTogglingStatus] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -102,12 +90,10 @@ export default function ClinicDetailPage() {
         router.replace("/dashboard");
         return;
       }
-
       const res = await fetch(`/api/admin/clinics/${params.id}`).catch(() => null);
       if (!res) { setError("Erro de ligação."); setLoading(false); return; }
       if (res.status === 404) { setError("Clínica não encontrada."); setLoading(false); return; }
       if (!res.ok) { setError("Erro ao carregar dados."); setLoading(false); return; }
-
       setClinic(await res.json() as ClinicDetail);
       setLoading(false);
     }
@@ -117,24 +103,40 @@ export default function ClinicDetailPage() {
   async function handleResetPassword(userId: string, userEmail: string) {
     setResettingUser(userId);
     setResetSuccess(null);
-
     try {
-      const res = await fetch(`/api/admin/users/${userId}/reset-password`, {
-        method: "POST",
-      });
-      const json = await res.json() as { error?: string; email?: string };
-
-      if (!res.ok) {
-        alert(json.error ?? "Erro ao resetar password.");
-        return;
-      }
-
+      const res = await fetch(`/api/admin/users/${userId}/reset-password`, { method: "POST" });
+      const json = await res.json() as { error?: string };
+      if (!res.ok) { alert(json.error ?? "Erro ao resetar password."); return; }
       setResetSuccess(userEmail);
       setTimeout(() => setResetSuccess(null), 5000);
     } catch {
       alert("Erro de ligação.");
     } finally {
       setResettingUser(null);
+    }
+  }
+
+  async function handleToggleStatus() {
+    if (!clinic) return;
+    const newStatus = !clinic.isActive;
+    const msg = newStatus
+      ? "Tem a certeza que quer reativar esta clínica?"
+      : "Tem a certeza que quer suspender esta clínica? O chatbot e widget deixarão de funcionar.";
+    if (!confirm(msg)) return;
+    setTogglingStatus(true);
+    try {
+      const res = await fetch(`/api/admin/clinics/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: newStatus }),
+      });
+      if (res.ok) {
+        setClinic((prev) => prev ? { ...prev, isActive: newStatus } : prev);
+      }
+    } catch {
+      alert("Erro de ligação.");
+    } finally {
+      setTogglingStatus(false);
     }
   }
 
@@ -165,19 +167,13 @@ export default function ClinicDetailPage() {
       {/* Cabeçalho */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div
-            className="h-12 w-12 flex-shrink-0 rounded-xl"
-            style={{ backgroundColor: clinic.primaryColor }}
-          />
+          <div className="h-12 w-12 flex-shrink-0 rounded-xl" style={{ backgroundColor: clinic.primaryColor }} />
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-2xl font-bold text-gray-900">{clinic.name}</h1>
-              <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${PLAN_COLORS[clinic.plan] ?? "bg-gray-100 text-gray-600"}`}>
-                {clinic.plan}
-              </span>
               <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${clinic.isActive ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>
                 <span className={`h-1.5 w-1.5 rounded-full ${clinic.isActive ? "bg-emerald-500" : "bg-red-500"}`} />
-                {clinic.isActive ? "Ativo" : "Inativo"}
+                {clinic.isActive ? "Ativo" : "Suspenso"}
               </span>
             </div>
             <p className="mt-0.5 text-sm text-gray-400">
@@ -187,12 +183,25 @@ export default function ClinicDetailPage() {
             </p>
           </div>
         </div>
-        <button
-          onClick={() => router.push("/dashboard/admin")}
-          className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-        >
-          ← Voltar à administração
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => void handleToggleStatus()}
+            disabled={togglingStatus}
+            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
+              clinic.isActive
+                ? "border border-red-200 bg-red-50 text-red-600 hover:bg-red-100"
+                : "border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+            }`}
+          >
+            {togglingStatus ? "A processar..." : clinic.isActive ? "⏸ Suspender clínica" : "▶ Reativar clínica"}
+          </button>
+          <button
+            onClick={() => router.push("/dashboard/admin")}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            ← Voltar à administração
+          </button>
+        </div>
       </div>
 
       {/* Cards de estatísticas */}
@@ -328,7 +337,7 @@ export default function ClinicDetailPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Paciente</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Médico / Especialidade</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Médico</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Data</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Estado</th>
               </tr>
@@ -360,15 +369,8 @@ export default function ClinicDetailPage() {
   );
 }
 
-// ─── Sub-componentes ───────────────────────────────────────────────────────────
-
 function StatCard({ label, value, color }: { label: string; value: number; color: "blue" | "green" | "purple" | "amber" }) {
-  const colors = {
-    blue: "text-blue-700",
-    green: "text-emerald-700",
-    purple: "text-purple-700",
-    amber: "text-amber-700",
-  };
+  const colors = { blue: "text-blue-700", green: "text-emerald-700", purple: "text-purple-700", amber: "text-amber-700" };
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <p className="text-sm text-gray-500">{label}</p>
