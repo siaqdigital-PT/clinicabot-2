@@ -5,19 +5,14 @@ import { auth } from "@/auth";
 import { prisma } from "@clinicabot/db";
 import { slugify } from "@clinicabot/utils";
 
-// ─── Validação ────────────────────────────────────────────────────────────────
-
 const createClinicSchema = z.object({
   name: z.string().min(2).max(100),
   slug: z.string().min(2).max(60).optional(),
   email: z.string().email(),
   phone: z.string().optional(),
   address: z.string().optional(),
-  plan: z.enum(["PILOT", "STARTER", "CLINIC", "ENTERPRISE"]).default("PILOT"),
   primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).default("#1D9E75"),
 });
-
-// ─── Guard SUPER_ADMIN ────────────────────────────────────────────────────────
 
 async function guardSuperAdmin() {
   const session = await auth();
@@ -25,8 +20,6 @@ async function guardSuperAdmin() {
   if (session.user.role !== "SUPER_ADMIN") return { error: "Acesso negado", status: 403 } as const;
   return { session };
 }
-
-// ─── GET /api/admin/clinics ───────────────────────────────────────────────────
 
 export async function GET() {
   const guard = await guardSuperAdmin();
@@ -42,8 +35,6 @@ export async function GET() {
 
   return NextResponse.json(clinics);
 }
-
-// ─── POST /api/admin/clinics ──────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
   const guard = await guardSuperAdmin();
@@ -61,20 +52,17 @@ export async function POST(req: NextRequest) {
   if (!parsed.success)
     return NextResponse.json({ error: "Dados inválidos", details: parsed.error.flatten() }, { status: 400 });
 
-  const { name, email, phone, address, plan, primaryColor } = parsed.data;
+  const { name, email, phone, address, primaryColor } = parsed.data;
   const slug = parsed.data.slug ?? slugify(name);
 
-  // Verificar unicidade de slug
   const existingSlug = await prisma.clinic.findUnique({ where: { slug } });
   if (existingSlug)
     return NextResponse.json({ error: "Slug já em uso. Escolhe outro." }, { status: 409 });
 
-  // Verificar se o email de utilizador já existe
   const existingUser = await prisma.user.findUnique({ where: { email } });
   if (existingUser)
     return NextResponse.json({ error: "Já existe um utilizador com este email." }, { status: 409 });
 
-  // Gerar password temporária (8 caracteres alfanuméricos)
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
   const tempPassword = Array.from({ length: 8 }, () =>
     chars[Math.floor(Math.random() * chars.length)]
@@ -82,10 +70,9 @@ export async function POST(req: NextRequest) {
 
   const hashedPassword = await bcrypt.hash(tempPassword, 12);
 
-  // Criar clínica + settings + user admin numa transacção
   const clinic = await prisma.$transaction(async (tx) => {
     const newClinic = await tx.clinic.create({
-      data: { name, slug, email, phone, address, plan, primaryColor },
+      data: { name, slug, email, phone, address, primaryColor, plan: "CLINIC" },
     });
 
     await tx.clinicSettings.create({
