@@ -11,6 +11,7 @@ import {
   Settings,
   BarChart3,
   ShieldCheck,
+  UserCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +31,7 @@ const navItems = [
   { href: "/dashboard/chat", label: "Conversas", icon: MessageSquare },
   { href: "/dashboard/reports", label: "Relatórios", icon: BarChart3 },
   { href: "/dashboard/settings", label: "Definições", icon: Settings },
+  { href: "/dashboard/account", label: "A minha conta", icon: UserCircle },
 ];
 
 const superAdminItems = [

@@ -6,14 +6,19 @@ export default auth((req) => {
   const isLoggedIn = !!session;
   const isDashboard = nextUrl.pathname.startsWith("/dashboard");
   const isLoginPage = nextUrl.pathname === "/login";
+  const isPublicAuthPage =
+    nextUrl.pathname === "/forgot-password" ||
+    nextUrl.pathname === "/reset-password";
 
-  // Redirecionar para login se tentar aceder ao dashboard sem sessão
   if (isDashboard && !isLoggedIn) {
     return NextResponse.redirect(new URL("/login", nextUrl));
   }
 
-  // Redirecionar para dashboard se já estiver logado e tentar aceder ao login
   if (isLoginPage && isLoggedIn) {
+    return NextResponse.redirect(new URL("/dashboard", nextUrl));
+  }
+
+  if (isPublicAuthPage && isLoggedIn) {
     return NextResponse.redirect(new URL("/dashboard", nextUrl));
   }
 
@@ -21,5 +26,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/login"],
+  matcher: ["/dashboard/:path*", "/login", "/forgot-password", "/reset-password"],
 };

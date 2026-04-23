@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -68,9 +69,17 @@ export function LoginForm() {
 
         {/* Password */}
         <div>
-          <label htmlFor="password" className="mb-1 block text-sm font-medium text-gray-700">
-            Password
-          </label>
+          <div className="mb-1 flex items-center justify-between">
+            <label htmlFor="password" className="text-sm font-medium text-gray-700">
+              Password
+            </label>
+            <Link
+              href="/forgot-password"
+              className="text-xs text-primary hover:underline"
+            >
+              Esqueci a password
+            </Link>
+          </div>
           <input
             {...register("password")}
             id="password"
