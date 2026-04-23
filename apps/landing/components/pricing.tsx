@@ -1,74 +1,57 @@
 const plans = [
   {
-    name: "DEMONSTRAÇÃO",
+    name: "DEMONSTRACAO",
     price: "Gratuito",
     period: "30 dias",
-    description: "Experimente o ClinicaBot na sua clínica sem qualquer compromisso.",
+    description: "Experimente o ClinicaBot na sua clinica sem qualquer compromisso.",
     features: [
       "Acesso completo a todas as funcionalidades",
-      "Chatbot IA com marcações automáticas",
-      "Widget embebível no seu site",
-      "Dashboard completo de gestão",
-      "Suporte por email durante o período",
+      "Chatbot IA com marcacoes automaticas",
+      "Widget embebivel no seu site",
+      "Dashboard completo de gestao",
+      "Suporte por email durante o periodo",
     ],
-    cta: "Pedir demonstração",
+    cta: "Pedir demonstracao",
     ctaHref: "#contact",
     highlighted: false,
     badge: null,
   },
   {
-    name: "LICENÇA",
-    price: "€2.500",
-    period: "pagamento único",
-    description: "Licença perpétua para a sua clínica. Setup incluído.",
+    name: "LICENCA",
+    price: "\u20ac2.500",
+    period: "pagamento unico",
+    description: "Licenca perpetua para a sua clinica. Inclui setup, configuracao e 3 meses de suporte.",
     features: [
-      "Licença vitalícia para 1 clínica",
-      "Setup e configuração incluídos",
+      "Licenca vitalicia para 1 clinica",
+      "Setup e configuracao incluidos",
       "Utilizadores ilimitados",
-      "Marcações ilimitadas",
+      "Marcacoes ilimitadas",
       "Chatbot IA personalizado",
-      "Widget embebível no seu site",
-      "Dashboard completo de gestão",
-      "Relatórios e estatísticas",
-      "3 meses de suporte incluídos",
+      "Widget embebivel no seu site",
+      "Dashboard completo de gestao",
+      "Relatorios e estatisticas",
+      "3 meses de suporte incluidos",
+      "Renovacao anual: \u20ac250/ano (suporte continuo + atualizacoes)",
     ],
-    cta: "Adquirir licença",
+    cta: "Adquirir licenca",
     ctaHref: "#contact",
     highlighted: true,
-    badge: "Mais popular",
-  },
-  {
-    name: "MANUTENÇÃO",
-    price: "€500",
-    period: "/ano",
-    description: "Suporte contínuo e atualizações para a sua clínica.",
-    features: [
-      "Atualizações de software",
-      "Suporte técnico prioritário",
-      "Monitorização do sistema",
-      "Backups regulares",
-      "Novas funcionalidades incluídas",
-      "Assistência remota quando necessário",
-    ],
-    cta: "Saber mais",
-    ctaHref: "#contact",
-    highlighted: false,
-    badge: null,
+    badge: "Licenca unica",
   },
 ];
 
 export function PricingSection() {
   return (
     <section id="pricing" className="bg-gray-50 py-24">
-      <div className="mx-auto max-w-6xl px-6">
+      <div className="mx-auto max-w-4xl px-6">
         <div className="mb-16 text-center">
-          <h2 className="text-4xl font-bold text-gray-900">Preços simples e transparentes</h2>
+          <h2 className="text-4xl font-bold text-gray-900">Preco simples e transparente</h2>
           <p className="mt-4 text-lg text-gray-500">
             Sem mensalidades. Pague uma vez e use para sempre.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
           {plans.map((plan) => (
             <div
               key={plan.name}
@@ -86,7 +69,6 @@ export function PricingSection() {
                 </div>
               )}
 
-              {/* Cabeçalho */}
               <div className="mb-6">
                 <p className={`text-xs font-bold uppercase tracking-widest ${plan.highlighted ? "text-emerald-200" : "text-[#1D9E75]"}`}>
                   {plan.name}
@@ -102,7 +84,6 @@ export function PricingSection() {
                 </p>
               </div>
 
-              {/* Features */}
               <ul className="mb-8 flex-1 space-y-3">
                 {plan.features.map((f) => (
                   <li key={f} className="flex items-start gap-2.5 text-sm">
@@ -114,7 +95,6 @@ export function PricingSection() {
                 ))}
               </ul>
 
-              {/* CTA */}
               
                 href={plan.ctaHref}
                 className={`block w-full rounded-xl py-3 text-center text-sm font-semibold transition-colors ${
@@ -130,11 +110,11 @@ export function PricingSection() {
         </div>
 
         <p className="mt-10 text-center text-sm text-gray-400">
-          Tem uma rede de clínicas?{" "}
+          Tem uma rede de clinicas?{" "}
           <a href="#contact" className="text-[#1D9E75] underline hover:text-[#15745a]">
             Fale connosco
           </a>{" "}
-          para condições especiais.
+          para condicoes especiais.
         </p>
       </div>
     </section>
