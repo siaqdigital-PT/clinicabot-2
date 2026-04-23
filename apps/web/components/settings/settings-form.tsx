@@ -21,6 +21,10 @@ const settingsSchema = z.object({
   cancellationHours: z.coerce.number().min(0).max(48),
   maxBookingDaysAhead: z.coerce.number().min(1).max(365),
   aiSystemPrompt: z.string().max(2000).optional(),
+  chatbotSchedule: z.string().max(1000).optional(),
+  chatbotPrices: z.string().max(1000).optional(),
+  chatbotFaq: z.string().max(2000).optional(),
+  chatbotExtraInfo: z.string().max(1000).optional(),
   insuranceIds: z.array(z.string()),
 });
 
@@ -45,6 +49,10 @@ interface SettingsFormProps {
       cancellationHours: number;
       maxBookingDaysAhead: number;
       aiSystemPrompt?: string | null;
+      chatbotSchedule?: string | null;
+      chatbotPrices?: string | null;
+      chatbotFaq?: string | null;
+      chatbotExtraInfo?: string | null;
     } | null;
   };
   allInsurances: Array<{ id: string; name: string }>;
@@ -77,6 +85,10 @@ export function SettingsForm({ clinic, allInsurances, selectedInsuranceIds, isSu
       cancellationHours: clinic.settings?.cancellationHours ?? 2,
       maxBookingDaysAhead: clinic.settings?.maxBookingDaysAhead ?? 60,
       aiSystemPrompt: clinic.settings?.aiSystemPrompt ?? "",
+      chatbotSchedule: clinic.settings?.chatbotSchedule ?? "",
+      chatbotPrices: clinic.settings?.chatbotPrices ?? "",
+      chatbotFaq: clinic.settings?.chatbotFaq ?? "",
+      chatbotExtraInfo: clinic.settings?.chatbotExtraInfo ?? "",
       insuranceIds: selectedInsuranceIds,
     },
   });
@@ -87,24 +99,16 @@ export function SettingsForm({ clinic, allInsurances, selectedInsuranceIds, isSu
   async function handleLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    // Preview local imediato
     const reader = new FileReader();
     reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
     reader.readAsDataURL(file);
-
     setLogoUploading(true);
     setLogoError(null);
-
     const formData = new FormData();
     formData.append("file", file);
     formData.append("clinicId", clinic.id);
-
     try {
-      const res = await fetch("/api/upload/logo", {
-        method: "POST",
-        body: formData,
-      });
+      const res = await fetch("/api/upload/logo", { method: "POST", body: formData });
       const json = await res.json() as { url?: string; error?: string };
       if (!res.ok || !json.url) {
         setLogoError(json.error ?? "Erro ao fazer upload.");
@@ -149,10 +153,7 @@ export function SettingsForm({ clinic, allInsurances, selectedInsuranceIds, isSu
 
   function toggleInsurance(id: string) {
     const current = insuranceIds ?? [];
-    setValue(
-      "insuranceIds",
-      current.includes(id) ? current.filter((i) => i !== id) : [...current, id]
-    );
+    setValue("insuranceIds", current.includes(id) ? current.filter((i) => i !== id) : [...current, id]);
   }
 
   const currentLogo = logoPreview ?? logoUrl;
@@ -160,50 +161,25 @@ export function SettingsForm({ clinic, allInsurances, selectedInsuranceIds, isSu
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
-      {/* Logo da Clínica */}
+      {/* Logo */}
       <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-base font-semibold text-gray-900">Logo da Clínica</h2>
         <div className="flex items-center gap-5">
-          {/* Preview */}
           <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-gray-200 bg-gray-50">
             {currentLogo ? (
-              <Image
-                src={currentLogo}
-                alt="Logo"
-                width={80}
-                height={80}
-                className="h-full w-full object-contain"
-                unoptimized
-              />
+              <Image src={currentLogo} alt="Logo" width={80} height={80} className="h-full w-full object-contain" unoptimized />
             ) : (
               <ImageIcon size={28} className="text-gray-300" />
             )}
           </div>
-
-          {/* Ações */}
           <div className="flex flex-col gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
-              onChange={(e) => void handleLogoChange(e)}
-              className="hidden"
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={logoUploading}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
-            >
+            <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml" onChange={(e) => void handleLogoChange(e)} className="hidden" />
+            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={logoUploading} className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60">
               <Upload size={14} />
               {logoUploading ? "A fazer upload..." : "Carregar logo"}
             </button>
             {currentLogo && (
-              <button
-                type="button"
-                onClick={() => void handleRemoveLogo()}
-                className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
-              >
+              <button type="button" onClick={() => void handleRemoveLogo()} className="flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50">
                 <X size={14} /> Remover logo
               </button>
             )}
@@ -241,9 +217,9 @@ export function SettingsForm({ clinic, allInsurances, selectedInsuranceIds, isSu
         </div>
       </section>
 
-      {/* Chatbot */}
+      {/* Chatbot — Configuração básica */}
       <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-base font-semibold text-gray-900">Chatbot</h2>
+        <h2 className="mb-4 text-base font-semibold text-gray-900">Chatbot — Configuração</h2>
         <div className="space-y-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">Mensagem de Boas-Vindas</label>
@@ -263,22 +239,93 @@ export function SettingsForm({ clinic, allInsurances, selectedInsuranceIds, isSu
             <input {...register("primaryColor")} type="color" className="h-9 w-16 cursor-pointer rounded border border-gray-300" />
             <span className="font-mono text-sm text-gray-500">{selectedColor}</span>
           </div>
-          {isSuperAdmin && (
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                System Prompt Personalizado{" "}
-                <span className="text-xs text-gray-400">(Super Admin)</span>
-              </label>
-              <textarea
-                {...register("aiSystemPrompt")}
-                rows={5}
-                className={`${inputCls} font-mono text-xs`}
-                placeholder="Deixe vazio para usar o prompt padrão..."
-              />
-            </div>
-          )}
         </div>
       </section>
+
+      {/* Chatbot — Conhecimento personalizado */}
+      <section className="rounded-xl border border-emerald-200 bg-emerald-50/30 p-6 shadow-sm">
+        <div className="mb-5">
+          <h2 className="text-base font-semibold text-gray-900">Chatbot — Conhecimento da Clínica</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Adicione informações específicas da sua clínica. O chatbot vai usar estes dados para responder às perguntas dos pacientes.
+          </p>
+        </div>
+
+        <div className="space-y-5">
+          {/* Horários */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              🕐 Horários de Funcionamento
+            </label>
+            <p className="mb-2 text-xs text-gray-400">Ex: Segunda a Sexta 8h-20h, Sábado 9h-13h, encerrado Domingos e feriados</p>
+            <textarea
+              {...register("chatbotSchedule")}
+              rows={3}
+              placeholder="Segunda a Sexta: 8h00 - 20h00&#10;Sábado: 9h00 - 13h00&#10;Domingo e feriados: Encerrado"
+              className={inputCls}
+            />
+          </div>
+
+          {/* Preços */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              💶 Preços e Comparticipações
+            </label>
+            <p className="mb-2 text-xs text-gray-400">Ex: Consulta de Clínica Geral €25, ADSE comparticipa 60%, Médis cobre totalmente</p>
+            <textarea
+              {...register("chatbotPrices")}
+              rows={3}
+              placeholder="Consulta de Clínica Geral: €25&#10;Consulta de especialidade: €45-60&#10;ADSE: comparticipa 60%&#10;Médis: cobre totalmente"
+              className={inputCls}
+            />
+          </div>
+
+          {/* FAQs */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              ❓ Perguntas Frequentes
+            </label>
+            <p className="mb-2 text-xs text-gray-400">Escreva perguntas e respostas comuns. O chatbot vai usar estas para responder aos pacientes.</p>
+            <textarea
+              {...register("chatbotFaq")}
+              rows={5}
+              placeholder="P: Há estacionamento na clínica?&#10;R: Sim, temos parque gratuito para clientes.&#10;&#10;P: É necessário trazer o cartão de utente?&#10;R: Sim, por favor traga o cartão de utente e o cartão de seguro se aplicável."
+              className={inputCls}
+            />
+          </div>
+
+          {/* Informações extra */}
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              ℹ️ Outras Informações
+            </label>
+            <p className="mb-2 text-xs text-gray-400">Qualquer outra informação útil: localização, transportes, serviços especiais, etc.</p>
+            <textarea
+              {...register("chatbotExtraInfo")}
+              rows={3}
+              placeholder="Estamos localizados junto ao Hospital Distrital, perto da paragem de autocarro n.º 12. Dispomos de serviço de enfermagem sem necessidade de marcação."
+              className={inputCls}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* System Prompt — apenas Super Admin */}
+      {isSuperAdmin && (
+        <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-1 text-base font-semibold text-gray-900">
+            System Prompt Avançado{" "}
+            <span className="text-xs font-normal text-gray-400">(Super Admin)</span>
+          </h2>
+          <p className="mb-4 text-xs text-gray-400">Substitui completamente o prompt base. Deixe vazio para usar o prompt padrão.</p>
+          <textarea
+            {...register("aiSystemPrompt")}
+            rows={6}
+            className={`${inputCls} font-mono text-xs`}
+            placeholder="Deixe vazio para usar o prompt padrão..."
+          />
+        </section>
+      )}
 
       {/* Marcações */}
       <section className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">

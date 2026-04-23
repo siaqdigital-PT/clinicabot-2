@@ -14,7 +14,7 @@ datasource db {
 model Clinic {
   id             String   @id @default(cuid())
   name           String
-  slug           String   @unique // usado na URL do widget: /widget/:slug
+  slug           String   @unique
   logoUrl        String?
   address        String?
   phone          String?
@@ -47,8 +47,12 @@ model ClinicSettings {
   cancellationHours   Int     @default(2)
   requirePhone        Boolean @default(true)
   maxBookingDaysAhead Int     @default(60)
-  chatbotPersonality  String  @default("professional") // professional | friendly | formal
-  aiSystemPrompt      String? // prompt base do chatbot personalizado por clínica
+  chatbotPersonality  String  @default("professional")
+  aiSystemPrompt      String?
+  chatbotSchedule     String?
+  chatbotPrices       String?
+  chatbotFaq          String?
+  chatbotExtraInfo    String?
 }
 
 enum Plan {
@@ -66,7 +70,7 @@ model Specialty {
   clinic      Clinic   @relation(fields: [clinicId], references: [id])
   name        String
   description String?
-  durationMin Int      @default(30) // duração da consulta em minutos
+  durationMin Int      @default(30)
   color       String   @default("#1D9E75")
   isActive    Boolean  @default(true)
   doctors     Doctor[]
@@ -101,9 +105,9 @@ model Availability {
   clinic    Clinic  @relation(fields: [clinicId], references: [id])
   doctorId  String
   doctor    Doctor  @relation(fields: [doctorId], references: [id])
-  dayOfWeek Int // 0=Dom, 1=Seg, ..., 6=Sab
-  startTime String // "09:00"
-  endTime   String // "13:00"
+  dayOfWeek Int
+  startTime String
+  endTime   String
   isActive  Boolean @default(true)
 
   @@index([doctorId, dayOfWeek])
@@ -128,7 +132,7 @@ model Appointment {
   reminderSent  Boolean           @default(false)
   cancelledAt   DateTime?
   cancelReason  String?
-  cancelToken   String?           @unique // token para cancelamento via email (sem login)
+  cancelToken   String?           @unique
   chatSessionId String?
   chatSession   ChatSession?      @relation(fields: [chatSessionId], references: [id])
   createdAt     DateTime          @default(now())
@@ -149,8 +153,8 @@ enum AppointmentStatus {
 // ─── SEGUROS ─────────────────────────────────────────────────────────────────
 
 model Insurance {
-  id     String           @id @default(cuid())
-  name   String           @unique
+  id      String           @id @default(cuid())
+  name    String           @unique
   clinics ClinicInsurance[]
 }
 
@@ -184,7 +188,7 @@ model ChatMessage {
   session   ChatSession @relation(fields: [sessionId], references: [id])
   role      MessageRole
   content   String
-  metadata  Json? // ex: { action: "booking_created", appointmentId: "..." }
+  metadata  Json?
   createdAt DateTime    @default(now())
 }
 
@@ -203,7 +207,7 @@ model User {
   name          String?
   email         String    @unique
   emailVerified DateTime?
-  password      String? // bcrypt hash
+  password      String?
   role          UserRole  @default(CLINIC_ADMIN)
   image         String?
   accounts      Account[]
@@ -212,9 +216,9 @@ model User {
 }
 
 enum UserRole {
-  SUPER_ADMIN // acesso a todas as clínicas
-  CLINIC_ADMIN // apenas à sua clínica
-  RECEPTIONIST // leitura + gestão de marcações
+  SUPER_ADMIN
+  CLINIC_ADMIN
+  RECEPTIONIST
 }
 
 model Account {

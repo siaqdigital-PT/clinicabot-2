@@ -50,7 +50,19 @@ export default async function SettingsPage() {
               website: clinic.website,
               primaryColor: clinic.primaryColor,
               welcomeMessage: clinic.welcomeMessage,
-              settings: clinic.settings,
+              logoUrl: clinic.logoUrl,
+              settings: clinic.settings ? {
+                chatbotPersonality: clinic.settings.chatbotPersonality,
+                reminderHoursBefore: clinic.settings.reminderHoursBefore,
+                allowCancellation: clinic.settings.allowCancellation,
+                cancellationHours: clinic.settings.cancellationHours,
+                maxBookingDaysAhead: clinic.settings.maxBookingDaysAhead,
+                aiSystemPrompt: clinic.settings.aiSystemPrompt,
+                chatbotSchedule: clinic.settings.chatbotSchedule,
+                chatbotPrices: clinic.settings.chatbotPrices,
+                chatbotFaq: clinic.settings.chatbotFaq,
+                chatbotExtraInfo: clinic.settings.chatbotExtraInfo,
+              } : null,
             }}
             allInsurances={allInsurances.map((i) => ({ id: i.id, name: i.name }))}
             selectedInsuranceIds={selectedInsuranceIds}

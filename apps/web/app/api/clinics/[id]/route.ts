@@ -11,16 +11,20 @@ const updateClinicSchema = z.object({
   website: z.string().url().optional().or(z.literal("")),
   primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
   welcomeMessage: z.string().min(5).max(300).optional(),
+  logoUrl: z.string().nullable().optional(),
   chatbotPersonality: z.enum(["professional", "friendly", "formal"]).optional(),
   reminderHoursBefore: z.number().optional(),
   allowCancellation: z.boolean().optional(),
   cancellationHours: z.number().optional(),
   maxBookingDaysAhead: z.number().optional(),
   aiSystemPrompt: z.string().max(2000).optional(),
+  chatbotSchedule: z.string().max(1000).optional(),
+  chatbotPrices: z.string().max(1000).optional(),
+  chatbotFaq: z.string().max(2000).optional(),
+  chatbotExtraInfo: z.string().max(1000).optional(),
   insuranceIds: z.array(z.string()).optional(),
 });
 
-/** PATCH /api/clinics/:id — actualizar dados e definições da clínica */
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -28,7 +32,6 @@ export async function PATCH(
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 
-  // Apenas SUPER_ADMIN ou o admin da própria clínica pode editar
   if (
     session.user.role !== "SUPER_ADMIN" &&
     session.user.clinicId !== params.id
@@ -36,7 +39,6 @@ export async function PATCH(
     return NextResponse.json({ error: "Acesso negado" }, { status: 403 });
   }
 
-  // Super Admin só pode editar aiSystemPrompt
   const isSuperAdmin = session.user.role === "SUPER_ADMIN";
 
   let body: unknown;
@@ -59,10 +61,13 @@ export async function PATCH(
     cancellationHours,
     maxBookingDaysAhead,
     aiSystemPrompt,
+    chatbotSchedule,
+    chatbotPrices,
+    chatbotFaq,
+    chatbotExtraInfo,
     ...clinicData
   } = parsed.data;
 
-  // Campos de settings restritos ao SUPER_ADMIN
   const settingsData = {
     ...(chatbotPersonality !== undefined && { chatbotPersonality }),
     ...(reminderHoursBefore !== undefined && { reminderHoursBefore }),
@@ -70,11 +75,13 @@ export async function PATCH(
     ...(cancellationHours !== undefined && { cancellationHours }),
     ...(maxBookingDaysAhead !== undefined && { maxBookingDaysAhead }),
     ...(isSuperAdmin && aiSystemPrompt !== undefined && { aiSystemPrompt }),
+    ...(chatbotSchedule !== undefined && { chatbotSchedule }),
+    ...(chatbotPrices !== undefined && { chatbotPrices }),
+    ...(chatbotFaq !== undefined && { chatbotFaq }),
+    ...(chatbotExtraInfo !== undefined && { chatbotExtraInfo }),
   };
 
-  // Transação: actualizar clínica + settings + seguros
   const updatedClinic = await prisma.$transaction(async (tx) => {
-    // Actualizar dados da clínica
     const clinic = await tx.clinic.update({
       where: { id: params.id },
       data: {
@@ -88,7 +95,6 @@ export async function PATCH(
       },
     });
 
-    // Actualizar seguros se fornecidos
     if (insuranceIds !== undefined) {
       await tx.clinicInsurance.deleteMany({ where: { clinicId: params.id } });
       if (insuranceIds.length > 0) {

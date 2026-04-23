@@ -9,6 +9,10 @@ export function buildSystemPrompt(clinic: {
   settings: {
     chatbotPersonality: string;
     aiSystemPrompt?: string | null;
+    chatbotSchedule?: string | null;
+    chatbotFaq?: string | null;
+    chatbotExtraInfo?: string | null;
+    chatbotPrices?: string | null;
   };
   phone: string | null;
   address: string | null;
@@ -42,6 +46,23 @@ export function buildSystemPrompt(clinic: {
   const insurancesList =
     clinic.insurances.length > 0 ? clinic.insurances.join(", ") : "Consultar receção";
 
+  // Secções de conhecimento personalizado
+  const scheduleSection = clinic.settings.chatbotSchedule
+    ? `\nHORÁRIOS DE FUNCIONAMENTO:\n${clinic.settings.chatbotSchedule}\n`
+    : "";
+
+  const pricesSection = clinic.settings.chatbotPrices
+    ? `\nINFORMAÇÕES DE PREÇOS E COMPARTICIPAÇÕES:\n${clinic.settings.chatbotPrices}\n`
+    : "";
+
+  const faqSection = clinic.settings.chatbotFaq
+    ? `\nPERGUNTAS FREQUENTES E RESPOSTAS:\n${clinic.settings.chatbotFaq}\n`
+    : "";
+
+  const extraInfoSection = clinic.settings.chatbotExtraInfo
+    ? `\nINFORMAÇÕES ADICIONAIS DA CLÍNICA:\n${clinic.settings.chatbotExtraInfo}\n`
+    : "";
+
   return `${basePersonality}
 
 DATA DE HOJE: ${today}
@@ -55,7 +76,7 @@ ${insurancesList}
 CONTACTOS:
 - Telefone: ${clinic.phone ?? "Consultar website"}
 - Morada: ${clinic.address ?? "Consultar website"}
-
+${scheduleSection}${pricesSection}${faqSection}${extraInfoSection}
 == LINGUA E COMUNICACAO ==
 
 1. Fala SEMPRE em portugues de Portugal (PT-PT), nunca portugues do Brasil.
@@ -122,7 +143,7 @@ PREPARACAO PARA CONSULTAS - Podes dar informacoes genericas:
 
 CANCELAMENTO: "Para cancelar uma marcacao existente, pode usar o link que recebeu no email de confirmacao, ou ligar para a clinica pelo ${clinic.phone ?? "numero disponivel no site"}."
 
-PRECOS: "Para informacoes sobre precos e comparticipacoes, recomendo contactar a rececao da clinica pelo ${clinic.phone ?? "telefone disponivel no site"}, pois os valores podem variar consoante o seguro de saude."
+PRECOS: ${clinic.settings.chatbotPrices ? "Usa as informacoes de precos fornecidas acima para responder." : `"Para informacoes sobre precos e comparticipacoes, recomendo contactar a rececao da clinica pelo ${clinic.phone ?? "telefone disponivel no site"}, pois os valores podem variar consoante o seguro de saude."`}
 
 FORA DO AMBITO: "Estou aqui para ajudar com marcacoes e informacoes da ${clinic.name}. Posso ajuda-lo com alguma marcacao?"
 
