@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { KeyRound } from "lucide-react";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -77,6 +78,12 @@ const STATUS_LABELS: Record<string, string> = {
   NO_SHOW: "Falta",
 };
 
+const ROLE_LABELS: Record<string, string> = {
+  SUPER_ADMIN: "Super Admin",
+  CLINIC_ADMIN: "Administrador",
+  RECEPTIONIST: "Rececionista",
+};
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function ClinicDetailPage() {
@@ -85,10 +92,11 @@ export default function ClinicDetailPage() {
   const [clinic, setClinic] = useState<ClinicDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [resettingUser, setResettingUser] = useState<string | null>(null);
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
-      // Auth check via stats endpoint
       const authRes = await fetch("/api/admin/stats").catch(() => null);
       if (!authRes || authRes.status === 403 || authRes.status === 401) {
         router.replace("/dashboard");
@@ -105,6 +113,30 @@ export default function ClinicDetailPage() {
     }
     void load();
   }, [params.id, router]);
+
+  async function handleResetPassword(userId: string, userEmail: string) {
+    setResettingUser(userId);
+    setResetSuccess(null);
+
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/reset-password`, {
+        method: "POST",
+      });
+      const json = await res.json() as { error?: string; email?: string };
+
+      if (!res.ok) {
+        alert(json.error ?? "Erro ao resetar password.");
+        return;
+      }
+
+      setResetSuccess(userEmail);
+      setTimeout(() => setResetSuccess(null), 5000);
+    } catch {
+      alert("Erro de ligação.");
+    } finally {
+      setResettingUser(null);
+    }
+  }
 
   if (loading) {
     return (
@@ -169,6 +201,56 @@ export default function ClinicDetailPage() {
         <StatCard label="Conversas" value={clinic._count.chatSessions} color="purple" />
         <StatCard label="Médicos ativos" value={clinic._count.doctors} color="blue" />
         <StatCard label="Especialidades" value={clinic._count.specialties} color="amber" />
+      </div>
+
+      {/* Utilizadores */}
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="border-b border-gray-100 px-5 py-4">
+          <h2 className="font-semibold text-gray-900">Utilizadores ({clinic.users.length})</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Clique em "Resetar password" para enviar um link de redefinição por email</p>
+        </div>
+        {resetSuccess && (
+          <div className="mx-5 mt-4 rounded-lg bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700 ring-1 ring-emerald-200">
+            ✓ Link de reset enviado para <strong>{resetSuccess}</strong>
+          </div>
+        )}
+        {clinic.users.length === 0 ? (
+          <p className="px-5 py-8 text-center text-sm text-gray-400">Nenhum utilizador registado</p>
+        ) : (
+          <table className="min-w-full divide-y divide-gray-50 text-sm">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Nome</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Email</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-500">Função</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50 bg-white">
+              {clinic.users.map((u) => (
+                <tr key={u.id}>
+                  <td className="px-5 py-3 font-medium text-gray-900">{u.name ?? "—"}</td>
+                  <td className="px-5 py-3 text-gray-500">{u.email}</td>
+                  <td className="px-5 py-3">
+                    <span className="inline-flex rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                      {ROLE_LABELS[u.role] ?? u.role}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3 text-right">
+                    <button
+                      onClick={() => void handleResetPassword(u.id, u.email)}
+                      disabled={resettingUser === u.id}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50 transition-colors"
+                    >
+                      <KeyRound size={12} />
+                      {resettingUser === u.id ? "A enviar..." : "Resetar password"}
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -282,15 +364,15 @@ export default function ClinicDetailPage() {
 
 function StatCard({ label, value, color }: { label: string; value: number; color: "blue" | "green" | "purple" | "amber" }) {
   const colors = {
-    blue: "bg-blue-50 text-blue-700",
-    green: "bg-emerald-50 text-emerald-700",
-    purple: "bg-purple-50 text-purple-700",
-    amber: "bg-amber-50 text-amber-700",
+    blue: "text-blue-700",
+    green: "text-emerald-700",
+    purple: "text-purple-700",
+    amber: "text-amber-700",
   };
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
       <p className="text-sm text-gray-500">{label}</p>
-      <p className={`mt-1 text-3xl font-bold ${colors[color].split(" ")[1]}`}>{value}</p>
+      <p className={`mt-1 text-3xl font-bold ${colors[color]}`}>{value}</p>
     </div>
   );
 }
