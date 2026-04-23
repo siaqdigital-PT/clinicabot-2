@@ -23,7 +23,7 @@ interface SidebarProps {
   };
 }
 
-const navItems = [
+const clinicNavItems = [
   { href: "/dashboard", label: "Visão Geral", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/appointments", label: "Marcações", icon: Calendar },
   { href: "/dashboard/doctors", label: "Médicos", icon: Stethoscope },
@@ -34,12 +34,16 @@ const navItems = [
   { href: "/dashboard/account", label: "A minha conta", icon: UserCircle },
 ];
 
-const superAdminItems = [
+const superAdminNavItems = [
+  { href: "/dashboard", label: "Visão Geral", icon: LayoutDashboard, exact: true },
   { href: "/dashboard/admin", label: "Administração", icon: ShieldCheck },
+  { href: "/dashboard/account", label: "A minha conta", icon: UserCircle },
 ];
 
 export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname();
+  const isSuperAdmin = user.role === "SUPER_ADMIN";
+  const navItems = isSuperAdmin ? superAdminNavItems : clinicNavItems;
 
   const isActive = (href: string, exact?: boolean) => {
     if (exact) return pathname === href;
@@ -58,15 +62,24 @@ export function Sidebar({ user }: SidebarProps) {
         </div>
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-gray-900">
-            {user.clinic?.name ?? "ClinicaBot"}
+            {isSuperAdmin ? "ClinicaBot" : (user.clinic?.name ?? "ClinicaBot")}
           </p>
-          <p className="text-xs text-gray-400">Painel de Gestão</p>
+          <p className="text-xs text-gray-400">
+            {isSuperAdmin ? "Super Administrador" : "Painel de Gestão"}
+          </p>
         </div>
       </div>
 
       {/* Navegação */}
       <nav className="flex-1 overflow-y-auto py-4">
         <ul className="space-y-0.5 px-2">
+          {isSuperAdmin && (
+            <li className="mb-1 px-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                Super Admin
+              </p>
+            </li>
+          )}
           {navItems.map((item) => (
             <li key={item.href}>
               <Link
@@ -83,33 +96,6 @@ export function Sidebar({ user }: SidebarProps) {
               </Link>
             </li>
           ))}
-
-          {/* Items exclusivos de Super Admin */}
-          {user.role === "SUPER_ADMIN" && (
-            <>
-              <li className="mt-4 mb-1 px-3">
-                <p className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                  Super Admin
-                </p>
-              </li>
-              {superAdminItems.map((item) => (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                      isActive(item.href)
-                        ? "bg-primary/10 text-primary"
-                        : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                    )}
-                  >
-                    <item.icon size={18} />
-                    {item.label}
-                  </Link>
-                </li>
-              ))}
-            </>
-          )}
         </ul>
       </nav>
 
