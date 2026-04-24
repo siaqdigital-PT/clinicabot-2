@@ -4,9 +4,11 @@
 
 - Node.js 20+
 - pnpm 9+ (`npm install -g pnpm`)
-- Conta [Neon](https://neon.tech) (BD grátis)
-- Conta [Resend](https://resend.com) (email grátis)
-- Conta [Groq](https://console.groq.com) (API Groq — grátis)
+- Conta [Supabase](https://supabase.com) (base de dados PostgreSQL)
+- Conta [Resend](https://resend.com) (email)
+- Conta [Groq](https://console.groq.com) (API de IA)
+- Conta [Vercel](https://vercel.com) (deploy)
+- Conta [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) (upload de logos)
 
 ---
 
@@ -27,14 +29,16 @@ Editar `apps/web/.env.local` com os seus valores:
 
 ```env
 DATABASE_URL="postgresql://user:pass@host/clinicabot?sslmode=require"
-NEXTAUTH_SECRET="$(openssl rand -base64 32)"
+DIRECT_URL="postgresql://user:pass@host/clinicabot?sslmode=require"
+NEXTAUTH_SECRET="gerar com: openssl rand -base64 32"
 NEXTAUTH_URL="http://localhost:3000"
 GROQ_API_KEY="gsk_..."
 RESEND_API_KEY="re_..."
 RESEND_FROM_EMAIL="noreply@clinicabot.pt"
-CRON_SECRET="$(openssl rand -hex 32)"
+CRON_SECRET="gerar com: openssl rand -hex 32"
 NEXT_PUBLIC_APP_URL="http://localhost:3000"
 NEXT_PUBLIC_WIDGET_URL="http://localhost:5173"
+BLOB_READ_WRITE_TOKEN="vercel_blob_..."
 ```
 
 ## 3. Base de dados
@@ -44,9 +48,10 @@ NEXT_PUBLIC_WIDGET_URL="http://localhost:5173"
 pnpm db:generate
 
 # Criar as tabelas na BD
-pnpm db:push
+cd apps/web
+npx prisma db push --schema ../../packages/db/prisma/schema.prisma
 
-# Popular com dados de exemplo (Polivi + Demo)
+# Popular com dados de exemplo
 pnpm db:seed
 ```
 
@@ -54,13 +59,13 @@ pnpm db:seed
 | Utilizador | Email | Password |
 |---|---|---|
 | Super Admin | admin@clinicabot.pt | admin123 |
-| Admin Polivi | admin@polivi.pt | polivi123 |
-| Receção | recepcao@polivi.pt | recepcao123 |
+| Admin Demo | admin@clinica-demo.pt | demo123 |
+| Receção Demo | recepcao@clinica-demo.pt | recepcao123 |
 
 ## 4. Arrancar em desenvolvimento
 
 ```bash
-# Tudo em paralelo (web + widget)
+# Tudo em paralelo (web + widget + landing)
 pnpm dev
 
 # Ou individual:
@@ -77,7 +82,7 @@ pnpm db:studio
 
 ---
 
-## Estrutura de ficheiros criados
+## Estrutura de ficheiros
 
 ```
 clinicabot/
@@ -87,14 +92,19 @@ clinicabot/
 │   │   │   ├── api/
 │   │   │   │   ├── appointments/     # CRUD de marcações
 │   │   │   │   ├── availability/     # Slots disponíveis
-│   │   │   │   ├── chat/             # Chatbot Grok
+│   │   │   │   ├── chat/             # Chatbot IA (Groq)
 │   │   │   │   ├── clinics/          # Gestão de clínicas
-│   │   │   │   ├── cron/reminders/   # Cron de lembretes
+│   │   │   │   ├── cron/reminders/   # Cron de lembretes (Vercel)
 │   │   │   │   ├── doctors/          # CRUD de médicos
 │   │   │   │   ├── reports/          # Métricas e relatórios
+│   │   │   │   ├── upload/logo/      # Upload de logo (Vercel Blob)
+│   │   │   │   ├── account/          # Gestão de conta do utilizador
+│   │   │   │   ├── admin/            # APIs exclusivas Super Admin
 │   │   │   │   └── widget-config/    # Config pública do widget
 │   │   │   ├── dashboard/            # Páginas do painel
-│   │   │   └── login/                # Página de login
+│   │   │   ├── login/                # Página de login
+│   │   │   ├── forgot-password/      # Recuperação de password
+│   │   │   └── reset-password/       # Redefinição de password
 │   │   ├── auth.ts                   # NextAuth v5
 │   │   ├── middleware.ts             # Proteção de rotas
 │   │   └── lib/
@@ -104,22 +114,42 @@ clinicabot/
 │   ├── widget/                       # Widget embebível (React + Vite IIFE)
 │   │   └── src/
 │   │       ├── main.tsx              # Entry point + auto-mount
-│   │       ├── Widget.tsx            # Shell + estilos
-│   │       ├── ChatWindow.tsx        # UI de chat
+│   │       ├── Widget.tsx            # Shell + estilos + dark mode
+│   │       ├── ChatWindow.tsx        # UI de chat + streaming
 │   │       └── FloatingButton.tsx    # Botão flutuante
 │   └── landing/                      # Landing page de marketing
-│       └── components/               # Hero, Features, Pricing, FAQ, Contact
+│       └── components/               # Hero, Features, Demo, Pricing, FAQ, Contact
 ├── packages/
 │   ├── db/
-│   │   ├── prisma/schema.prisma      # Schema completo
-│   │   ├── prisma/seed.ts            # Seed Polivi + Demo
+│   │   ├── prisma/schema.prisma      # Schema completo (12 modelos)
+│   │   ├── prisma/seed.ts            # Seed com dados demo genéricos
 │   │   └── src/index.ts              # Prisma client singleton
 │   ├── types/src/index.ts            # Tipos TypeScript partilhados
-│   └── utils/src/index.ts            # Utilitários (datas, tokens, etc.)
+│   └── utils/src/index.ts            # Utilitários (datas, tokens, slugify)
 ├── turbo.json
 ├── pnpm-workspace.yaml
 └── .env.example
 ```
+
+---
+
+## Modelo de Negócio
+
+- **Licença:** 2.500 EUR pagamento único (inclui setup, configuração e 3 meses de suporte)
+- **Renovação anual:** 250 EUR/ano (manutenção, suporte e atualizações)
+- O Super Admin (dono do produto) mantém acesso total a todas as clínicas
+- Cada cliente tem acesso apenas à sua clínica
+
+---
+
+## Gestão de Clínicas (Super Admin)
+
+O Super Admin pode em `/dashboard/admin`:
+- Criar novas clínicas com credenciais temporárias
+- Ver estatísticas globais de todas as clínicas
+- Suspender/reativar clínicas (ex: falta de pagamento da renovação)
+- Resetar passwords de utilizadores
+- Ver médicos, especialidades e marcações de cada clínica
 
 ---
 
@@ -131,31 +161,52 @@ npm install -g vercel
 
 # Deploy (a partir da raiz do monorepo)
 vercel --prod
-
-# Configurar variáveis de ambiente no dashboard Vercel
-# (ou via: vercel env add VARIABLE_NAME)
 ```
 
-**Configurar Cron Job no Vercel:**
-O ficheiro `apps/web/vercel.json` já tem o cron configurado:
+**Variáveis de ambiente necessárias no Vercel:**
+```
+DATABASE_URL, DIRECT_URL, NEXTAUTH_SECRET, NEXTAUTH_URL,
+GROQ_API_KEY, RESEND_API_KEY, RESEND_FROM_EMAIL,
+CRON_SECRET, NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_WIDGET_URL,
+BLOB_READ_WRITE_TOKEN
+```
+
+**Cron Job (lembretes automáticos):**
 ```json
 { "crons": [{ "path": "/api/cron/reminders", "schedule": "0 8 * * *" }] }
 ```
 
 **Embed do widget no site do cliente:**
 ```html
-<div id="clinicabot-widget" data-clinic="demo"></div>
-<script src="https://cdn.clinicabot.pt/widget/latest/bundle.js" async></script>
+<div id="clinicabot-widget" data-clinic="SLUG_DA_CLINICA"></div>
+<script src="https://clinicabot.vercel.app/widget/bundle.js" async></script>
 ```
 
 ---
 
-## Próximos passos
+## Funcionalidades Implementadas
 
-- [ ] Adicionar página `/dashboard/specialties` (CRUD de especialidades)
-- [ ] Adicionar página `/dashboard/chat` (monitor de conversas)
-- [ ] Adicionar página `/dashboard/reports` com gráficos e exportação PDF
-- [ ] Implementar upload de logo (Vercel Blob)
-- [ ] Adicionar Google OAuth (configurar no Google Cloud Console)
-- [ ] Escrever testes com Vitest para a lógica de disponibilidade
-- [ ] Configurar domínio personalizado no Vercel
+- Dashboard completo com 8+ páginas
+- Chatbot IA com marcações automáticas e streaming de respostas
+- Widget embebível com modo escuro automático
+- Upload de logo por clínica (Vercel Blob)
+- Conhecimento personalizado do chatbot (horários, preços, FAQs)
+- Recuperação e alteração de password
+- Reset de password pelo Super Admin
+- Suspender/reativar clínicas
+- Exportar relatórios em PDF e Excel
+- Calendário visual de marcações
+- Notificações em tempo real
+- Emails de confirmação e lembretes automáticos
+- Landing page com modelo de preços por licença
+
+---
+
+## Pendente
+
+- [ ] Domínio próprio clinicabot.pt
+- [ ] Email suporte@clinicabot.pt no Resend
+- [ ] Google OAuth
+- [ ] Data de expiração de renovação por clínica
+- [ ] Página de onboarding para novos clientes
+- [ ] Regenerar API keys por segurança
