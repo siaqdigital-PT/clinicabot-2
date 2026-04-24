@@ -9,19 +9,27 @@ const faqs = [
   },
   {
     q: "Preciso de alterar o meu site?",
-    a: "Não. Basta adicionar 2 linhas de código HTML ao seu site, antes do </body>. Funciona com qualquer plataforma: WordPress, Wix, Squarespace, sites custom, etc. A nossa equipa ajuda na instalação se necessário.",
+    a: "Não. Basta adicionar 2 linhas de código HTML ao seu site. Funciona com qualquer plataforma: WordPress, Wix, Squarespace, sites custom, etc. A nossa equipa trata da instalação e configuração inicial.",
   },
   {
     q: "Os pacientes precisam de criar conta?",
     a: "Não. O chatbot recolhe apenas os dados necessários para a marcação: nome, email e telefone. Sem registos, sem passwords. Os pacientes recebem a confirmação e o lembrete directamente no email.",
   },
   {
-    q: "Como são geridas as marcações?",
-    a: "Através do painel de gestão, onde pode ver todas as marcações, gerir médicos e horários, e acompanhar as conversas do chatbot. Recebe também uma notificação por email sempre que uma nova marcação é criada via chatbot.",
+    q: "Como funciona a licença?",
+    a: "Paga uma única vez 2.500 EUR e a licença é sua para sempre. Inclui setup completo, configuração personalizada e 3 meses de suporte. Após esse período, pode optar pela renovação anual de 250 EUR para manutenção e suporte contínuo.",
   },
   {
-    q: "O piloto gratuito tem algum compromisso?",
-    a: "Não. Após 30 dias decide se quer continuar. Sem cartão de crédito, sem compromisso. Os dados das marcações ficam sempre seus e pode exportá-los a qualquer momento.",
+    q: "O que inclui a renovação anual de 250 EUR?",
+    a: "A renovação anual inclui suporte técnico prioritário, atualizações de software, monitorização do sistema e assistência remota quando necessário. Sem renovação, o sistema continua a funcionar mas sem suporte nem atualizações.",
+  },
+  {
+    q: "Como são geridas as marcações?",
+    a: "Através do painel de gestão, onde pode ver todas as marcações, gerir médicos e horários, e acompanhar as conversas do chatbot. Recebe também uma notificação sempre que uma nova marcação é criada via chatbot.",
+  },
+  {
+    q: "A demonstração gratuita tem compromisso?",
+    a: "Não. Durante 30 dias tem acesso completo a todas as funcionalidades sem qualquer compromisso. No final decide se quer adquirir a licença. Os dados das marcações ficam sempre seus.",
   },
   {
     q: "Funciona com seguros de saúde?",
@@ -44,20 +52,13 @@ export function FaqSection() {
 
         <div className="space-y-3">
           {faqs.map((faq, i) => (
-            <div
-              key={i}
-              className="overflow-hidden rounded-xl border border-gray-200"
-            >
+            <div key={i} className="overflow-hidden rounded-xl border border-gray-200">
               <button
                 className="flex w-full items-center justify-between px-6 py-4 text-left text-base font-medium text-gray-900 hover:bg-gray-50"
                 onClick={() => setOpen(open === i ? null : i)}
               >
                 <span>{faq.q}</span>
-                <span
-                  className={`ml-4 flex-shrink-0 text-[#1D9E75] transition-transform duration-200 ${
-                    open === i ? "rotate-180" : ""
-                  }`}
-                >
+                <span className={`ml-4 flex-shrink-0 text-[#1D9E75] transition-transform duration-200 ${open === i ? "rotate-180" : ""}`}>
                   ▾
                 </span>
               </button>
