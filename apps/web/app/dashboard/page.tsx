@@ -1,8 +1,9 @@
-import { auth } from "@/auth";
+mport { auth } from "@/auth";
 import { prisma } from "@clinicabot/db";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { UpcomingAppointments } from "@/components/dashboard/upcoming-appointments";
 import { MonthlyChart } from "@/components/dashboard/monthly-chart";
+import { OnboardingGuide } from "@/components/dashboard/onboarding-guide";
 import { formatAppointmentDate } from "@clinicabot/utils";
 import { startOfDay, endOfDay, addDays } from "date-fns";
 
@@ -10,20 +11,17 @@ export default async function DashboardPage() {
   const session = await auth();
   if (!session) return null;
 
-  const clinicFilter =
-    session.user.role === "SUPER_ADMIN"
-      ? {}
-      : { clinicId: session.user.clinicId ?? "" };
+  const isSuperAdmin = session.user.role === "SUPER_ADMIN";
+  const clinicId = session.user.clinicId ?? "";
+
+  const clinicFilter = isSuperAdmin ? {} : { clinicId };
 
   const now = new Date();
   const todayStart = startOfDay(now);
   const todayEnd = endOfDay(now);
   const tomorrowEnd = endOfDay(addDays(now, 1));
 
-  const [
-    appointmentsToday,
-    upcomingAppointments,
-  ] = await Promise.all([
+  const [appointmentsToday, upcomingAppointments, onboardingData] = await Promise.all([
     prisma.appointment.count({
       where: { ...clinicFilter, scheduledAt: { gte: todayStart, lte: todayEnd }, status: { notIn: ["CANCELLED"] } },
     }),
@@ -37,7 +35,37 @@ export default async function DashboardPage() {
       orderBy: { scheduledAt: "asc" },
       take: 10,
     }),
+    // Verificar estado de onboarding apenas para admins de clínica
+    !isSuperAdmin && clinicId
+      ? prisma.clinic.findUnique({
+          where: { id: clinicId },
+          include: {
+            settings: true,
+            _count: {
+              select: {
+                doctors: true,
+                specialties: true,
+              },
+            },
+          },
+        })
+      : Promise.resolve(null),
   ]);
+
+  // Calcular estado de onboarding
+  const showOnboarding = !isSuperAdmin && onboardingData && (
+    !onboardingData.address ||
+    !onboardingData.phone ||
+    onboardingData._count.specialties === 0 ||
+    onboardingData._count.doctors === 0
+  );
+
+  const onboardingSteps = onboardingData ? {
+    hasClinicInfo: !!(onboardingData.address && onboardingData.phone && onboardingData.email),
+    hasSpecialties: onboardingData._count.specialties > 0,
+    hasDoctors: onboardingData._count.doctors > 0,
+    hasWelcomeMessage: onboardingData.welcomeMessage !== "Olá! Como posso ajudar?",
+  } : null;
 
   return (
     <div className="space-y-6">
@@ -48,6 +76,11 @@ export default async function DashboardPage() {
           Bem-vindo ao painel da {session.user.clinic?.name ?? "ClinicaBot"}
         </p>
       </div>
+
+      {/* Guia de onboarding */}
+      {showOnboarding && onboardingSteps && (
+        <OnboardingGuide steps={onboardingSteps} clinicSlug={onboardingData?.slug ?? ""} />
+      )}
 
       {/* Cards de métricas */}
       <StatsCards clinicFilter={clinicFilter} />
