@@ -7,6 +7,8 @@ export function ContactSection() {
     name: "",
     email: "",
     clinic: "",
+    phone: "",
+    interest: "demo",
     message: "",
   });
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
@@ -23,7 +25,7 @@ export function ContactSection() {
       });
       if (!res.ok) throw new Error("Erro no envio");
       setStatus("sent");
-      setFormData({ name: "", email: "", clinic: "", message: "" });
+      setFormData({ name: "", email: "", clinic: "", phone: "", interest: "demo", message: "" });
     } catch {
       setStatus("error");
     }
@@ -37,10 +39,10 @@ export function ContactSection() {
       <div className="mx-auto max-w-2xl px-6">
         <div className="mb-10 text-center">
           <h2 className="text-4xl font-bold text-gray-900">
-            Pronto para capturar as marcações que está a perder?
+            Fale connosco
           </h2>
           <p className="mt-4 text-gray-500">
-            Preencha o formulário e entraremos em contacto em 24 horas.
+            Preencha o formulário e entraremos em contacto em 24 horas para agendar uma demonstração.
           </p>
         </div>
 
@@ -87,19 +89,49 @@ export function ContactSection() {
               </div>
             </div>
 
-            {/* Nome da clínica */}
+            {/* Clínica + Telefone */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Nome da clínica <span className="text-red-500">*</span>
+                </label>
+                <input
+                  required
+                  type="text"
+                  value={formData.clinic}
+                  onChange={(e) => setFormData((p) => ({ ...p, clinic: e.target.value }))}
+                  placeholder="Clínica São João"
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Telefone
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
+                  placeholder="258 000 000"
+                  className={inputCls}
+                />
+              </div>
+            </div>
+
+            {/* Interesse */}
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">
-                Nome da clínica <span className="text-red-500">*</span>
+                O que pretende?
               </label>
-              <input
-                required
-                type="text"
-                value={formData.clinic}
-                onChange={(e) => setFormData((p) => ({ ...p, clinic: e.target.value }))}
-                placeholder="Clínica São João"
+              <select
+                value={formData.interest}
+                onChange={(e) => setFormData((p) => ({ ...p, interest: e.target.value }))}
                 className={inputCls}
-              />
+              >
+                <option value="demo">Demonstração gratuita (30 dias)</option>
+                <option value="license">Adquirir licença (2.500 EUR)</option>
+                <option value="info">Apenas quero mais informações</option>
+              </select>
             </div>
 
             {/* Mensagem */}
@@ -132,12 +164,4 @@ export function ContactSection() {
               {status === "sending" ? "A enviar…" : "Enviar mensagem"}
             </button>
 
-            <p className="text-center text-xs text-gray-400">
-              Sem spam. Sem compromisso. Respondemos sempre.
-            </p>
-          </form>
-        )}
-      </div>
-    </section>
-  );
-}
+            <p className="text-center text-xs text-gray-4
