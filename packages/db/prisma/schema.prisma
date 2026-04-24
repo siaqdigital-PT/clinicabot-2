@@ -24,6 +24,7 @@ model Clinic {
   isActive       Boolean   @default(true)
   plan           Plan      @default(PILOT)
   renewalDate    DateTime?
+  internalNotes  String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 

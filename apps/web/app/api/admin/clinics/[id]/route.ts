@@ -62,7 +62,11 @@ export async function PATCH(
     return NextResponse.json({ error: "Não autorizado" }, { status: 403 });
   }
 
-  const body = await req.json() as { isActive?: boolean; renewalDate?: string | null };
+  const body = await req.json() as {
+    isActive?: boolean;
+    renewalDate?: string | null;
+    internalNotes?: string | null;
+  };
 
   const clinic = await prisma.clinic.update({
     where: { id: params.id },
@@ -71,6 +75,7 @@ export async function PATCH(
       ...(body.renewalDate !== undefined && {
         renewalDate: body.renewalDate ? new Date(body.renewalDate) : null,
       }),
+      ...(body.internalNotes !== undefined && { internalNotes: body.internalNotes }),
     },
   });
 

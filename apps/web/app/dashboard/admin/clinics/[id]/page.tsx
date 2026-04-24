@@ -17,6 +17,7 @@ interface ClinicDetail {
   primaryColor: string;
   createdAt: string;
   renewalDate: string | null;
+  internalNotes: string | null;
   doctors: {
     id: string;
     name: string;
@@ -102,6 +103,9 @@ export default function ClinicDetailPage() {
   const [renewalDate, setRenewalDate] = useState("");
   const [savingRenewal, setSavingRenewal] = useState(false);
   const [renewalSaved, setRenewalSaved] = useState(false);
+  const [internalNotes, setInternalNotes] = useState("");
+  const [savingNotes, setSavingNotes] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -116,9 +120,8 @@ export default function ClinicDetailPage() {
       if (!res.ok) { setError("Erro ao carregar dados."); setLoading(false); return; }
       const data = await res.json() as ClinicDetail;
       setClinic(data);
-      if (data.renewalDate) {
-        setRenewalDate(data.renewalDate.split("T")[0]);
-      }
+      if (data.renewalDate) setRenewalDate(data.renewalDate.split("T")[0]);
+      if (data.internalNotes) setInternalNotes(data.internalNotes);
       setLoading(false);
     }
     void load();
@@ -154,9 +157,7 @@ export default function ClinicDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ isActive: newStatus }),
       });
-      if (res.ok) {
-        setClinic((prev) => prev ? { ...prev, isActive: newStatus } : prev);
-      }
+      if (res.ok) setClinic((prev) => prev ? { ...prev, isActive: newStatus } : prev);
     } catch {
       alert("Erro de ligação.");
     } finally {
@@ -181,6 +182,26 @@ export default function ClinicDetailPage() {
       alert("Erro de ligação.");
     } finally {
       setSavingRenewal(false);
+    }
+  }
+
+  async function handleSaveNotes() {
+    setSavingNotes(true);
+    try {
+      const res = await fetch(`/api/admin/clinics/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ internalNotes: internalNotes || null }),
+      });
+      if (res.ok) {
+        setClinic((prev) => prev ? { ...prev, internalNotes: internalNotes || null } : prev);
+        setNotesSaved(true);
+        setTimeout(() => setNotesSaved(false), 3000);
+      }
+    } catch {
+      alert("Erro de ligação.");
+    } finally {
+      setSavingNotes(false);
     }
   }
 
@@ -215,7 +236,7 @@ export default function ClinicDetailPage() {
         <div className="flex items-center gap-4">
           <div className="h-12 w-12 flex-shrink-0 rounded-xl" style={{ backgroundColor: clinic.primaryColor }} />
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-2xl font-bold text-gray-900">{clinic.name}</h1>
               <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${clinic.isActive ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>
                 <span className={`h-1.5 w-1.5 rounded-full ${clinic.isActive ? "bg-emerald-500" : "bg-red-500"}`} />
@@ -263,39 +284,57 @@ export default function ClinicDetailPage() {
         <StatCard label="Especialidades" value={clinic._count.specialties} color="amber" />
       </div>
 
-      {/* Renovação */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-1 font-semibold text-gray-900">Renovação Anual</h2>
-        <p className="mb-4 text-xs text-gray-400">Define a data de expiração da renovação anual desta clínica (250 EUR/ano).</p>
-        <div className="flex items-center gap-3">
-          <input
-            type="date"
-            value={renewalDate}
-            onChange={(e) => setRenewalDate(e.target.value)}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#1D9E75] focus:outline-none focus:ring-1 focus:ring-[#1D9E75]"
-          />
-          <button
-            onClick={() => void handleSaveRenewal()}
-            disabled={savingRenewal}
-            className="rounded-lg bg-[#1D9E75] px-4 py-2 text-sm font-medium text-white hover:bg-[#178a65] disabled:opacity-60 transition-colors"
-          >
-            {savingRenewal ? "A guardar..." : "Guardar"}
-          </button>
-          {clinic.renewalDate && (
+      {/* Renovação + Notas internas */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Renovação */}
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-1 font-semibold text-gray-900">Renovação Anual</h2>
+          <p className="mb-4 text-xs text-gray-400">Define a data de expiração da renovação anual (250 EUR/ano).</p>
+          <div className="flex items-center gap-3">
+            <input
+              type="date"
+              value={renewalDate}
+              onChange={(e) => setRenewalDate(e.target.value)}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#1D9E75] focus:outline-none focus:ring-1 focus:ring-[#1D9E75]"
+            />
             <button
-              onClick={() => { setRenewalDate(""); void handleSaveRenewal(); }}
-              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors"
+              onClick={() => void handleSaveRenewal()}
+              disabled={savingRenewal}
+              className="rounded-lg bg-[#1D9E75] px-4 py-2 text-sm font-medium text-white hover:bg-[#178a65] disabled:opacity-60 transition-colors"
             >
-              Limpar
+              {savingRenewal ? "A guardar..." : "Guardar"}
             </button>
+            {renewalSaved && <span className="text-sm text-emerald-600">✓ Guardado!</span>}
+          </div>
+          {clinic.renewalDate && (
+            <p className="mt-2 text-xs text-gray-400">
+              Data atual: <strong>{formatDateShort(clinic.renewalDate)}</strong>
+            </p>
           )}
-          {renewalSaved && <span className="text-sm text-emerald-600">✓ Guardado!</span>}
         </div>
-        {clinic.renewalDate && (
-          <p className="mt-2 text-xs text-gray-400">
-            Data atual: <strong>{formatDateShort(clinic.renewalDate)}</strong>
-          </p>
-        )}
+
+        {/* Notas internas */}
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h2 className="mb-1 font-semibold text-gray-900">Notas Internas</h2>
+          <p className="mb-4 text-xs text-gray-400">Notas visíveis apenas para o Super Admin. O cliente não as vê.</p>
+          <textarea
+            value={internalNotes}
+            onChange={(e) => setInternalNotes(e.target.value)}
+            rows={4}
+            placeholder="Ex: Cliente pagou renovação em Janeiro 2026. Problema com widget resolvido em Fevereiro..."
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#1D9E75] focus:outline-none focus:ring-1 focus:ring-[#1D9E75]"
+          />
+          <div className="mt-2 flex items-center gap-3">
+            <button
+              onClick={() => void handleSaveNotes()}
+              disabled={savingNotes}
+              className="rounded-lg bg-[#1D9E75] px-4 py-2 text-sm font-medium text-white hover:bg-[#178a65] disabled:opacity-60 transition-colors"
+            >
+              {savingNotes ? "A guardar..." : "Guardar notas"}
+            </button>
+            {notesSaved && <span className="text-sm text-emerald-600">✓ Guardado!</span>}
+          </div>
+        </div>
       </div>
 
       {/* Utilizadores */}
