@@ -9,24 +9,23 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// ─── TENANT (Clínica) ────────────────────────────────────────────────────────
-
 model Clinic {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   name           String
-  slug           String   @unique
+  slug           String    @unique
   logoUrl        String?
   address        String?
   phone          String?
   email          String?
   website        String?
-  primaryColor   String   @default("#1D9E75")
-  welcomeMessage String   @default("Olá! Como posso ajudar?")
-  timezone       String   @default("Europe/Lisbon")
-  isActive       Boolean  @default(true)
-  plan           Plan     @default(PILOT)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  primaryColor   String    @default("#1D9E75")
+  welcomeMessage String    @default("Olá! Como posso ajudar?")
+  timezone       String    @default("Europe/Lisbon")
+  isActive       Boolean   @default(true)
+  plan           Plan      @default(PILOT)
+  renewalDate    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   specialties    Specialty[]
   doctors        Doctor[]
@@ -62,8 +61,6 @@ enum Plan {
   ENTERPRISE
 }
 
-// ─── ESPECIALIDADES ──────────────────────────────────────────────────────────
-
 model Specialty {
   id          String   @id @default(cuid())
   clinicId    String
@@ -77,8 +74,6 @@ model Specialty {
 
   @@unique([clinicId, name])
 }
-
-// ─── MÉDICOS ─────────────────────────────────────────────────────────────────
 
 model Doctor {
   id          String     @id @default(cuid())
@@ -97,8 +92,6 @@ model Doctor {
   appointments   Appointment[]
 }
 
-// ─── DISPONIBILIDADE ─────────────────────────────────────────────────────────
-
 model Availability {
   id        String  @id @default(cuid())
   clinicId  String
@@ -112,8 +105,6 @@ model Availability {
 
   @@index([doctorId, dayOfWeek])
 }
-
-// ─── MARCAÇÕES ───────────────────────────────────────────────────────────────
 
 model Appointment {
   id            String            @id @default(cuid())
@@ -150,11 +141,9 @@ enum AppointmentStatus {
   NO_SHOW
 }
 
-// ─── SEGUROS ─────────────────────────────────────────────────────────────────
-
 model Insurance {
-  id      String           @id @default(cuid())
-  name    String           @unique
+  id      String            @id @default(cuid())
+  name    String            @unique
   clinics ClinicInsurance[]
 }
 
@@ -166,8 +155,6 @@ model ClinicInsurance {
 
   @@id([clinicId, insuranceId])
 }
-
-// ─── CHAT ────────────────────────────────────────────────────────────────────
 
 model ChatSession {
   id           String        @id @default(cuid())
@@ -197,8 +184,6 @@ enum MessageRole {
   ASSISTANT
   SYSTEM
 }
-
-// ─── AUTH ─────────────────────────────────────────────────────────────────────
 
 model User {
   id            String    @id @default(cuid())

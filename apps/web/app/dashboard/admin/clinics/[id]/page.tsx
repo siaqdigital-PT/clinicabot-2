@@ -16,6 +16,7 @@ interface ClinicDetail {
   isActive: boolean;
   primaryColor: string;
   createdAt: string;
+  renewalDate: string | null;
   doctors: {
     id: string;
     name: string;
@@ -51,6 +52,22 @@ function formatDate(dateStr: string) {
   });
 }
 
+function formatDateShort(dateStr: string) {
+  return new Date(dateStr).toLocaleDateString("pt-PT", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function getRenewalStatus(renewalDate: string | null) {
+  if (!renewalDate) return null;
+  const days = Math.ceil((new Date(renewalDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  if (days < 0) return { label: `Expirou há ${Math.abs(days)} dias`, color: "bg-red-100 text-red-700" };
+  if (days <= 30) return { label: `Expira em ${days} dias`, color: "bg-amber-100 text-amber-700" };
+  return { label: `Expira em ${days} dias`, color: "bg-emerald-100 text-emerald-700" };
+}
+
 const STATUS_COLORS: Record<string, string> = {
   PENDING: "bg-yellow-50 text-yellow-700",
   CONFIRMED: "bg-blue-50 text-blue-700",
@@ -82,6 +99,9 @@ export default function ClinicDetailPage() {
   const [resettingUser, setResettingUser] = useState<string | null>(null);
   const [resetSuccess, setResetSuccess] = useState<string | null>(null);
   const [togglingStatus, setTogglingStatus] = useState(false);
+  const [renewalDate, setRenewalDate] = useState("");
+  const [savingRenewal, setSavingRenewal] = useState(false);
+  const [renewalSaved, setRenewalSaved] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -94,7 +114,11 @@ export default function ClinicDetailPage() {
       if (!res) { setError("Erro de ligação."); setLoading(false); return; }
       if (res.status === 404) { setError("Clínica não encontrada."); setLoading(false); return; }
       if (!res.ok) { setError("Erro ao carregar dados."); setLoading(false); return; }
-      setClinic(await res.json() as ClinicDetail);
+      const data = await res.json() as ClinicDetail;
+      setClinic(data);
+      if (data.renewalDate) {
+        setRenewalDate(data.renewalDate.split("T")[0]);
+      }
       setLoading(false);
     }
     void load();
@@ -140,6 +164,26 @@ export default function ClinicDetailPage() {
     }
   }
 
+  async function handleSaveRenewal() {
+    setSavingRenewal(true);
+    try {
+      const res = await fetch(`/api/admin/clinics/${params.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ renewalDate: renewalDate || null }),
+      });
+      if (res.ok) {
+        setClinic((prev) => prev ? { ...prev, renewalDate: renewalDate || null } : prev);
+        setRenewalSaved(true);
+        setTimeout(() => setRenewalSaved(false), 3000);
+      }
+    } catch {
+      alert("Erro de ligação.");
+    } finally {
+      setSavingRenewal(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24 text-gray-400">
@@ -162,6 +206,8 @@ export default function ClinicDetailPage() {
     );
   }
 
+  const renewalStatus = getRenewalStatus(clinic.renewalDate);
+
   return (
     <div className="space-y-6">
       {/* Cabeçalho */}
@@ -175,6 +221,11 @@ export default function ClinicDetailPage() {
                 <span className={`h-1.5 w-1.5 rounded-full ${clinic.isActive ? "bg-emerald-500" : "bg-red-500"}`} />
                 {clinic.isActive ? "Ativo" : "Suspenso"}
               </span>
+              {renewalStatus && (
+                <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${renewalStatus.color}`}>
+                  {renewalStatus.label}
+                </span>
+              )}
             </div>
             <p className="mt-0.5 text-sm text-gray-400">
               /{clinic.slug}
@@ -210,6 +261,41 @@ export default function ClinicDetailPage() {
         <StatCard label="Conversas" value={clinic._count.chatSessions} color="purple" />
         <StatCard label="Médicos ativos" value={clinic._count.doctors} color="blue" />
         <StatCard label="Especialidades" value={clinic._count.specialties} color="amber" />
+      </div>
+
+      {/* Renovação */}
+      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-1 font-semibold text-gray-900">Renovação Anual</h2>
+        <p className="mb-4 text-xs text-gray-400">Define a data de expiração da renovação anual desta clínica (250 EUR/ano).</p>
+        <div className="flex items-center gap-3">
+          <input
+            type="date"
+            value={renewalDate}
+            onChange={(e) => setRenewalDate(e.target.value)}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#1D9E75] focus:outline-none focus:ring-1 focus:ring-[#1D9E75]"
+          />
+          <button
+            onClick={() => void handleSaveRenewal()}
+            disabled={savingRenewal}
+            className="rounded-lg bg-[#1D9E75] px-4 py-2 text-sm font-medium text-white hover:bg-[#178a65] disabled:opacity-60 transition-colors"
+          >
+            {savingRenewal ? "A guardar..." : "Guardar"}
+          </button>
+          {clinic.renewalDate && (
+            <button
+              onClick={() => { setRenewalDate(""); void handleSaveRenewal(); }}
+              className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors"
+            >
+              Limpar
+            </button>
+          )}
+          {renewalSaved && <span className="text-sm text-emerald-600">✓ Guardado!</span>}
+        </div>
+        {clinic.renewalDate && (
+          <p className="mt-2 text-xs text-gray-400">
+            Data atual: <strong>{formatDateShort(clinic.renewalDate)}</strong>
+          </p>
+        )}
       </div>
 
       {/* Utilizadores */}
