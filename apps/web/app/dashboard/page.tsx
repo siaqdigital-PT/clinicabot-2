@@ -1,4 +1,4 @@
-mport { auth } from "@/auth";
+import { auth } from "@/auth";
 import { prisma } from "@clinicabot/db";
 import { StatsCards } from "@/components/dashboard/stats-cards";
 import { UpcomingAppointments } from "@/components/dashboard/upcoming-appointments";
@@ -35,7 +35,6 @@ export default async function DashboardPage() {
       orderBy: { scheduledAt: "asc" },
       take: 10,
     }),
-    // Verificar estado de onboarding apenas para admins de clínica
     !isSuperAdmin && clinicId
       ? prisma.clinic.findUnique({
           where: { id: clinicId },
@@ -52,7 +51,6 @@ export default async function DashboardPage() {
       : Promise.resolve(null),
   ]);
 
-  // Calcular estado de onboarding
   const showOnboarding = !isSuperAdmin && onboardingData && (
     !onboardingData.address ||
     !onboardingData.phone ||
@@ -69,7 +67,6 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Título */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Visão Geral</h1>
         <p className="text-sm text-gray-500">
@@ -77,15 +74,12 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* Guia de onboarding */}
       {showOnboarding && onboardingSteps && (
         <OnboardingGuide steps={onboardingSteps} clinicSlug={onboardingData?.slug ?? ""} />
       )}
 
-      {/* Cards de métricas */}
       <StatsCards clinicFilter={clinicFilter} />
 
-      {/* Grid: gráfico + próximas marcações */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <MonthlyChart />
 
